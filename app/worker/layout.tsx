@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -10,36 +12,46 @@ export default async function WorkerLayout({
 }) {
   const supabase = createClient()
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (authError || !user) {
+  if (!user) {
     redirect('/login')
   }
 
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
 
-  if (profileError || !profile) {
+  if (!profile) {
     redirect('/login')
   }
 
   if (!profile.active) {
-    redirect('/login?error=account-disabled')
+    redirect('/login')
   }
 
-  // Admins should use /dashboard
   if (profile.role === 'admin') {
     redirect('/dashboard')
   }
 
+  const typedProfile: Profile = {
+    id: profile.id,
+    email: profile.email,
+    full_name: profile.full_name,
+    role: profile.role,
+    phone: profile.phone ?? null,
+    language: profile.language ?? 'ca',
+    telegram_chat_id: profile.telegram_chat_id ?? null,
+    active: profile.active ?? true,
+    avatar_url: profile.avatar_url ?? null,
+    created_at: profile.created_at,
+    updated_at: profile.updated_at,
+  }
+
   return (
-    <AppLayout profile={profile as Profile}>
+    <AppLayout profile={typedProfile}>
       {children}
     </AppLayout>
   )
