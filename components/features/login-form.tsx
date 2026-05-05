@@ -1,0 +1,327 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Eye, EyeOff, Sun, Moon, Loader2 } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import { createClient as createBrowserClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { TramitLogo } from '@/components/layout/logo'
+import { cn } from '@/lib/utils'
+
+export function LoginForm() {
+  const router = useRouter()
+  const { theme, setTheme } = useTheme()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [resetSent, setResetSent] = useState(false)
+  const [showReset, setShowReset] = useState(false)
+  const [language, setLanguage] = useState<'ca' | 'es'>('ca')
+
+  const supabase = createBrowserClient()
+
+  const texts = {
+    ca: {
+      title: 'Accés a Tràmit',
+      subtitle: 'Plataforma interna de gestió',
+      emailLabel: 'Correu electrònic',
+      emailPlaceholder: 'nom@tramiteconomistes.com',
+      passwordLabel: 'Contrasenya',
+      passwordPlaceholder: '••••••••',
+      loginButton: 'Entrar',
+      forgotPassword: 'He oblidat la contrasenya',
+      resetTitle: 'Recuperar accés',
+      resetDesc: 'T\'enviarem un correu per restablir la contrasenya.',
+      sendReset: 'Enviar correu',
+      backToLogin: '← Tornar',
+      resetSent: 'Correu enviat! Revisa la teva safata d\'entrada.',
+      errorInvalid: 'Credencials incorrectes. Verifica el correu i la contrasenya.',
+      errorGeneral: 'S\'ha produït un error. Torna-ho a intentar.',
+      errorEmail: 'Introdueix un correu vàlid.',
+    },
+    es: {
+      title: 'Acceso a Tràmit',
+      subtitle: 'Plataforma interna de gestión',
+      emailLabel: 'Correo electrónico',
+      emailPlaceholder: 'nombre@tramiteconomistes.com',
+      passwordLabel: 'Contraseña',
+      passwordPlaceholder: '••••••••',
+      loginButton: 'Entrar',
+      forgotPassword: 'He olvidado la contraseña',
+      resetTitle: 'Recuperar acceso',
+      resetDesc: 'Te enviaremos un correo para restablecer la contraseña.',
+      sendReset: 'Enviar correo',
+      backToLogin: '← Volver',
+      resetSent: '¡Correo enviado! Revisa tu bandeja de entrada.',
+      errorInvalid: 'Credenciales incorrectas. Verifica el correo y la contraseña.',
+      errorGeneral: 'Se ha producido un error. Inténtalo de nuevo.',
+      errorEmail: 'Introduce un correo válido.',
+    },
+  }
+
+  const t = texts[language]
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+
+      if (authError) {
+        setError(t.errorInvalid)
+        return
+      }
+
+      if (data.user) {
+        // Get role to redirect
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single()
+
+        if (profile?.role === 'admin' || profile?.role === 'supervisor') {
+          router.push('/dashboard')
+        } else {
+          router.push('/worker')
+        }
+        router.refresh()
+      }
+    } catch {
+      setError(t.errorGeneral)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleReset(e: React.FormEvent) {
+    e.preventDefault()
+    if (!email.trim() || !email.includes('@')) {
+      setError(t.errorEmail)
+      return
+    }
+
+    setError(null)
+    setLoading(true)
+
+    try {
+      await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      setResetSent(true)
+    } catch {
+      setError(t.errorGeneral)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-tramit-blue-light via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 p-4">
+      
+      {/* Theme toggle - top right */}
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          aria-label="Canviar tema"
+        >
+          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </button>
+      </div>
+
+      {/* Card */}
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <TramitLogo size="lg" />
+        </div>
+
+        {/* Form card */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-tramit-blue/10 dark:shadow-black/30 p-8 border border-slate-100 dark:border-slate-700">
+          
+          {!showReset ? (
+            <>
+              <div className="mb-6">
+                <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
+                  {t.title}
+                </h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  {t.subtitle}
+                </p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-slate-700 dark:text-slate-300">
+                    {t.emailLabel}
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={t.emailPlaceholder}
+                    required
+                    autoComplete="email"
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">
+                    {t.passwordLabel}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={t.passwordPlaceholder}
+                      required
+                      autoComplete="current-password"
+                      className="h-11 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      aria-label={showPassword ? 'Amagar contrasenya' : 'Mostrar contrasenya'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2.5">
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="tramit"
+                  className="w-full h-11 text-base font-semibold"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t.loginButton
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => { setShowReset(true); setError(null) }}
+                  className="text-sm text-tramit-blue hover:text-tramit-blue-dark dark:text-blue-400 dark:hover:text-blue-300 underline-offset-4 hover:underline transition-colors"
+                >
+                  {t.forgotPassword}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Reset password form */}
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                  {t.resetTitle}
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  {t.resetDesc}
+                </p>
+              </div>
+
+              {resetSent ? (
+                <div className="rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-4 py-3">
+                  <p className="text-sm text-green-700 dark:text-green-400">{t.resetSent}</p>
+                </div>
+              ) : (
+                <form onSubmit={handleReset} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="reset-email">{t.emailLabel}</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={t.emailPlaceholder}
+                      required
+                      className="h-11"
+                    />
+                  </div>
+
+                  {error && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                  )}
+
+                  <Button
+                    type="submit"
+                    variant="tramit"
+                    className="w-full h-11"
+                    disabled={loading}
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : t.sendReset}
+                  </Button>
+                </form>
+              )}
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => { setShowReset(false); setError(null); setResetSent(false) }}
+                  className="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                >
+                  {t.backToLogin}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Language selector */}
+        <div className="flex items-center justify-center gap-3 mt-6">
+          <button
+            onClick={() => setLanguage('ca')}
+            className={cn(
+              'text-sm font-medium transition-colors px-2 py-1 rounded',
+              language === 'ca'
+                ? 'text-tramit-blue dark:text-blue-400 font-semibold'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            )}
+          >
+            CAT
+          </button>
+          <span className="text-slate-300 dark:text-slate-600">|</span>
+          <button
+            onClick={() => setLanguage('es')}
+            className={cn(
+              'text-sm font-medium transition-colors px-2 py-1 rounded',
+              language === 'es'
+                ? 'text-tramit-blue dark:text-blue-400 font-semibold'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            )}
+          >
+            ESP
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
