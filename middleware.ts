@@ -1,16 +1,15 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import type { CookieOptions } from '@supabase/ssr'
 
 const PUBLIC_ROUTES = ['/login', '/reset-password']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     return NextResponse.next()
   }
 
-  // Allow static files and Next.js internals
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/') ||
@@ -19,16 +18,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check env vars — if missing, just go to login
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Dynamically import to avoid crashes at module load time
   try {
     const { createServerClient } = await import('@supabase/ssr')
 
@@ -39,7 +35,7 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
@@ -54,14 +50,12 @@ export async function middleware(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      const loginUrl = new URL('/login', request.url)
-      return NextResponse.redirect(loginUrl)
+      return NextResponse.redirect(new URL('/login', request.url))
     }
 
     return supabaseResponse
   } catch {
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 }
 
