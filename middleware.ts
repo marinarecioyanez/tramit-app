@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Deixar passar SEMPRE aquestes rutes sense cap comprovació
+  // Aquestes rutes mai es comproven
   if (
     pathname === '/login' ||
     pathname === '/reset-password' ||
@@ -14,7 +15,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Per la resta de rutes, comprovar sessió
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -23,9 +23,6 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const { createServerClient } = await import('@supabase/ssr')
-    import type { CookieOptions } from '@supabase/ssr'
-
     let supabaseResponse = NextResponse.next({ request })
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
