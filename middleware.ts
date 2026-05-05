@@ -1,23 +1,20 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import type { CookieOptions } from '@supabase/ssr'
-
-const PUBLIC_ROUTES = ['/login', '/reset-password']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
-    return NextResponse.next()
-  }
-
+  // Deixar passar SEMPRE aquestes rutes sense cap comprovació
   if (
+    pathname === '/login' ||
+    pathname === '/reset-password' ||
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/') ||
+    pathname.startsWith('/api') ||
     pathname.includes('.')
   ) {
     return NextResponse.next()
   }
 
+  // Per la resta de rutes, comprovar sessió
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -27,6 +24,7 @@ export async function middleware(request: NextRequest) {
 
   try {
     const { createServerClient } = await import('@supabase/ssr')
+    import type { CookieOptions } from '@supabase/ssr'
 
     let supabaseResponse = NextResponse.next({ request })
 
@@ -60,7 +58,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }
