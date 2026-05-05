@@ -4,22 +4,11 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import type { Profile } from '@/types'
 
 interface AppLayoutProps {
   children: React.ReactNode
-  profile: {
-    id: string
-    email: string
-    full_name: string
-    role: 'admin' | 'supervisor' | 'worker'
-    phone?: string | null
-    language?: string
-    telegram_chat_id?: string | null
-    active?: boolean
-    avatar_url?: string | null
-    created_at?: string
-    updated_at?: string
-  }
+  profile: Profile
 }
 
 export function AppLayout({ children, profile }: AppLayoutProps) {
