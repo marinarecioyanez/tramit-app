@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -8,50 +10,45 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  try {
-    const supabase = createClient()
+  const supabase = createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      redirect('/login')
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile) {
-      redirect('/login')
-    }
-
-    if (profile.role === 'worker') {
-      redirect('/worker')
-    }
-
-    const typedProfile: Profile = {
-      id: profile.id,
-      email: profile.email,
-      full_name: profile.full_name,
-      role: profile.role,
-      phone: profile.phone ?? null,
-      language: profile.language ?? 'ca',
-      telegram_chat_id: profile.telegram_chat_id ?? null,
-      active: profile.active ?? true,
-      avatar_url: profile.avatar_url ?? null,
-      created_at: profile.created_at,
-      updated_at: profile.updated_at,
-    }
-
-    return (
-      <AppLayout profile={typedProfile}>
-        {children}
-      </AppLayout>
-    )
-  } catch (error) {
-    console.error('Dashboard layout error:', error)
+  if (!user) {
     redirect('/login')
   }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) {
+    redirect('/login')
+  }
+
+  if (profile.role === 'worker') {
+    redirect('/worker')
+  }
+
+  const typedProfile: Profile = {
+    id: profile.id,
+    email: profile.email,
+    full_name: profile.full_name,
+    role: profile.role,
+    phone: profile.phone ?? null,
+    language: profile.language ?? 'ca',
+    telegram_chat_id: profile.telegram_chat_id ?? null,
+    active: profile.active ?? true,
+    avatar_url: profile.avatar_url ?? null,
+    created_at: profile.created_at,
+    updated_at: profile.updated_at,
+  }
+
+  return (
+    <AppLayout profile={typedProfile}>
+      {children}
+    </AppLayout>
+  )
 }
