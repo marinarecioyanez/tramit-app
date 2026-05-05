@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppLayout } from '@/components/layout/app-layout'
+import type { Profile } from '@/types'
 
 export default async function DashboardLayout({
   children,
@@ -30,8 +31,22 @@ export default async function DashboardLayout({
       redirect('/worker')
     }
 
+    const typedProfile: Profile = {
+      id: profile.id,
+      email: profile.email,
+      full_name: profile.full_name,
+      role: profile.role,
+      phone: profile.phone ?? null,
+      language: profile.language ?? 'ca',
+      telegram_chat_id: profile.telegram_chat_id ?? null,
+      active: profile.active ?? true,
+      avatar_url: profile.avatar_url ?? null,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
+    }
+
     return (
-      <AppLayout profile={profile}>
+      <AppLayout profile={typedProfile}>
         {children}
       </AppLayout>
     )
