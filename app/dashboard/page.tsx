@@ -5,16 +5,23 @@ import { Clock, Calendar, Umbrella, UserX } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name')
-    .eq('id', user!.id)
-    .single()
+  let firstName = 'Marina'
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+      firstName = profile?.full_name?.split(' ')[0] || 'Marina'
+    }
+  } catch {
+    // continua amb valor per defecte
+  }
 
   const greeting = getGreeting()
-  const firstName = profile?.full_name?.split(' ')[0] || 'Marina'
 
   const summaryCards = [
     { title: 'Sol·licituds pendents', value: 0, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
