@@ -7,10 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Umbrella, AlertTriangle, CheckCircle,
-  ArrowLeft, Calendar, Info
-} from 'lucide-react'
+import { Umbrella, AlertTriangle, CheckCircle, ArrowLeft, Calendar, Info } from 'lucide-react'
 import Link from 'next/link'
 
 interface Balance {
@@ -34,12 +31,10 @@ interface Props {
   userId: string
 }
 
-function calculateWorkingDays(
-  start: string,
-  end: string,
-  holidays: string[],
-  closures: string[]
-): number {
+const MONTH_NAMES = ['Gener','Febrer','Març','Abril','Maig','Juny','Juliol','Agost','Setembre','Octubre','Novembre','Desembre']
+const DAYS_CA = ['Dl','Dt','Dc','Dj','Dv','Ds','Dg']
+
+function calculateWorkingDays(start: string, end: string, holidays: string[], closures: string[]): number {
   const nonWorking = new Set([...holidays, ...closures])
   let count = 0
   const current = new Date(start + 'T12:00:00')
@@ -53,37 +48,16 @@ function calculateWorkingDays(
   return count
 }
 
-function hasOverlap(
-  start: string,
-  end: string,
-  existing: ExistingRequest[]
-): boolean {
-  return existing.some(req =>
-    start <= req.end_date && end >= req.start_date
-  )
+function hasOverlap(start: string, end: string, existing: ExistingRequest[]): boolean {
+  return existing.some(req => start <= req.end_date && end >= req.start_date)
 }
 
-const MONTH_NAMES = [
-  'Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny',
-  'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre'
-]
-
-const DAYS_CA = ['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg']
-
-export function NovaVacancesClient({
-  balance,
-  holidays,
-  closures,
-  existingRequests,
-  userId,
-}: Props) {
+export function NovaVacancesClient({ balance, holidays, closures, existingRequests, userId }: Props) {
   const router = useRouter()
   const supabase = createClient()
-
   const today = new Date()
-  const [calendarDate, setCalendarDate] = useState(
-    new Date(today.getFullYear(), today.getMonth(), 1)
-  )
+
+  const [calendarDate, setCalendarDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [notes, setNotes] = useState('')
@@ -93,7 +67,6 @@ export function NovaVacancesClient({
 
   const holidaySet = useMemo(() => new Set(holidays), [holidays])
   const closureSet = useMemo(() => new Set(closures), [closures])
-
   const remaining = balance ? balance.total_days - balance.used_days : 0
 
   const workingDays = useMemo(() => {
@@ -106,10 +79,8 @@ export function NovaVacancesClient({
     return hasOverlap(startDate, endDate, existingRequests)
   }, [startDate, endDate, existingRequests])
 
-  const canSubmit = startDate && endDate && endDate >= startDate &&
-    workingDays > 0 && workingDays <= remaining && !hasConflict
+  const canSubmit = !!(startDate && endDate && endDate >= startDate && workingDays > 0 && workingDays <= remaining && !hasConflict)
 
-  // Calendari visual
   const year = calendarDate.getFullYear()
   const month = calendarDate.getMonth()
   const firstDay = new Date(year, month, 1)
@@ -127,12 +98,8 @@ export function NovaVacancesClient({
 
   function handleDayClick(date: Date) {
     const dateStr = date.toISOString().split('T')[0]
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6
-    const isHoliday = holidaySet.has(dateStr)
-    const isClosure = closureSet.has(dateStr)
-
-    if (isWeekend || isHoliday || isClosure) return
-
+    if (date.getDay() === 0 || date.getDay() === 6) return
+    if (holidaySet.has(dateStr) || closureSet.has(dateStr)) return
     if (!startDate || (startDate && endDate)) {
       setStartDate(dateStr)
       setEndDate('')
@@ -144,47 +111,28 @@ export function NovaVacancesClient({
     }
   }
 
-  function getDayState(date: Date): string {
+  function getDayStyle(date: Date): string {
     const dateStr = date.toISOString().split('T')[0]
     const isWeekend = date.getDay() === 0 || date.getDay() === 6
-    const isHoliday = holidaySet.has(dateStr)
-    const isClosure = closureSet.has(dateStr)
-    const isExisting = existingRequests.some(r =>
-      dateStr >= r.start_date && dateStr <= r.end_date
-    )
+    const isHoliday = holidaySet.has(dateStr) || closureSet.has(dateStr)
+    const isExisting = existingRequests.some(r => dateStr >= r.start_date && dateStr <= r.end_date)
+    const isEdge = dateStr === startDate || dateStr === endDate
+    const isRange = startDate && endDate && dateStr > startDate && dateStr < endDate
 
-    if (isWeekend) return 'weekend'
-    if (isHoliday || isClosure) return 'holiday'
-    if (isExisting) return 'existing'
-
-    if (startDate && endDate) {
-      if (dateStr === startDate || dateStr === endDate) return 'selected-edge'
-      if (dateStr > startDate && dateStr < endDate) return 'selected-range'
-    } else if (startDate && dateStr === startDate) {
-      return 'selected-edge'
-    }
-
-    return 'normal'
-  }
-
-  const dayStyles: Record<string, string> = {
-    weekend: 'text-muted-foreground/40 cursor-default',
-    holiday: 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 cursor-default',
-    existing: 'bg-slate-100 dark:bg-slate-800 text-muted-foreground cursor-not-allowed line-through',
-    'selected-edge': 'bg-tramit-blue text-white font-bold rounded-full',
-    'selected-range': 'bg-tramit-blue/20 dark:bg-tramit-blue/30 text-tramit-blue',
-    normal: 'hover:bg-muted cursor-pointer rounded-full',
+    if (isWeekend) return 'text-muted-foreground/40 cursor-default'
+    if (isHoliday) return 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 cursor-default rounded'
+    if (isExisting) return 'bg-slate-100 dark:bg-slate-800 text-muted-foreground cursor-not-allowed line-through rounded'
+    if (isEdge) return 'bg-tramit-blue text-white font-bold rounded-full cursor-pointer'
+    if (isRange) return 'bg-tramit-blue/20 dark:bg-tramit-blue/30 text-tramit-blue cursor-pointer'
+    return 'hover:bg-muted cursor-pointer rounded-full'
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-
     if (!canSubmit) return
-
     setSaving(true)
     try {
-      // Actualitzar pending_days
       if (balance) {
         await supabase
           .from('vacation_balances')
@@ -192,7 +140,6 @@ export function NovaVacancesClient({
           .eq('user_id', userId)
           .eq('year', new Date().getFullYear())
       }
-
       const { error: insertError } = await supabase
         .from('absence_requests')
         .insert({
@@ -205,9 +152,7 @@ export function NovaVacancesClient({
           notes: notes || null,
           deducts_vacation: true,
         })
-
       if (insertError) throw insertError
-
       setSuccess(true)
       setTimeout(() => router.push('/worker/vacances'), 2000)
     } catch {
@@ -225,7 +170,7 @@ export function NovaVacancesClient({
         </div>
         <h2 className="text-xl font-bold">Sol·licitud enviada!</h2>
         <p className="text-muted-foreground">
-          La teva sol·licitud de <strong>{workingDays} dies</strong> ha estat enviada a l&apos;administració per a la seva aprovació.
+          La teva sol·licitud de <strong>{workingDays} dies</strong> ha estat enviada a l&apos;administració.
         </p>
         <p className="text-sm text-muted-foreground">Redirigint...</p>
       </div>
@@ -234,7 +179,6 @@ export function NovaVacancesClient({
 
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* Capçalera */}
       <div className="flex items-center gap-3">
         <Link href="/worker/vacances" className="p-2 rounded-lg hover:bg-muted transition-colors">
           <ArrowLeft className="h-4 w-4" />
@@ -245,7 +189,6 @@ export function NovaVacancesClient({
         </div>
       </div>
 
-      {/* Saldo disponible */}
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Dies totals', value: balance?.total_days || 0, color: 'text-foreground' },
@@ -264,11 +207,12 @@ export function NovaVacancesClient({
       {remaining === 0 && (
         <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 rounded-lg">
           <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-          <p className="text-sm text-red-700 dark:text-red-400">No tens dies de vacances disponibles per a {new Date().getFullYear()}.</p>
+          <p className="text-sm text-red-700 dark:text-red-400">
+            No tens dies de vacances disponibles per a {new Date().getFullYear()}.
+          </p>
         </div>
       )}
 
-      {/* Calendari interactiu */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -279,24 +223,19 @@ export function NovaVacancesClient({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCalendarDate(new Date(year, month - 1, 1))}
-                className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-              >
-                ‹
-              </button>
+                className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground"
+              >‹</button>
               <span className="text-sm font-medium min-w-[130px] text-center">
                 {MONTH_NAMES[month]} {year}
               </span>
               <button
                 onClick={() => setCalendarDate(new Date(year, month + 1, 1))}
-                className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-              >
-                ›
-              </button>
+                className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground"
+              >›</button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Dies de la setmana */}
           <div className="grid grid-cols-7 mb-1">
             {DAYS_CA.map(d => (
               <div key={d} className={`text-center text-xs font-semibold py-1 ${d === 'Ds' || d === 'Dg' ? 'text-muted-foreground/40' : 'text-muted-foreground'}`}>
@@ -305,30 +244,16 @@ export function NovaVacancesClient({
             ))}
           </div>
 
-          {/* Dies */}
           <div className="grid grid-cols-7 gap-0.5">
             {calDays.map((date, idx) => {
               if (!date) return <div key={`empty-${idx}`} />
-
               const dateStr = date.toISOString().split('T')[0]
-              const state = getDayState(date)
               const isToday = dateStr === today.toISOString().split('T')[0]
-              const holidayName = holidays.includes(dateStr)
-                ? 'Festiu'
-                : closures.includes(dateStr)
-                ? 'Tancament'
-                : null
-
               return (
                 <div
                   key={dateStr}
                   onClick={() => handleDayClick(date)}
-                  title={holidayName || undefined}
-                  className={`
-                    relative flex items-center justify-center h-9 text-sm transition-all select-none
-                    ${dayStyles[state] || dayStyles.normal}
-                    ${isToday && state === 'normal' ? 'font-bold text-tramit-blue' : ''}
-                  `}
+                  className={`relative flex items-center justify-center h-9 text-sm transition-all select-none ${getDayStyle(date)} ${isToday && getDayStyle(date).includes('hover') ? 'font-bold text-tramit-blue' : ''}`}
                 >
                   {date.getDate()}
                   {isToday && (
@@ -339,7 +264,6 @@ export function NovaVacancesClient({
             })}
           </div>
 
-          {/* Llegenda */}
           <div className="flex gap-4 mt-4 flex-wrap">
             {[
               { color: 'bg-tramit-blue', label: 'Seleccionat' },
@@ -355,31 +279,80 @@ export function NovaVacancesClient({
         </CardContent>
       </Card>
 
-      {/* Resum de la selecció */}
       {startDate && (
         <Card className={`border-2 ${canSubmit ? 'border-tramit-blue/30' : workingDays > remaining ? 'border-red-300' : 'border-muted'}`}>
-          <CardContent className="pt-4 pb-4">
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Data d&apos;inici</Label>
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={e => { setStartDate(e.target.value); setEndDate('') }}
-                    min={today.toISOString().split('T')[0]}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Data de fi</Label>
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={e => setEndDate(e.target.value)}
-                    min={startDate}
-                  />
-                </div>
+          <CardContent className="pt-4 pb-4 space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Data d&apos;inici</Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={e => { setStartDate(e.target.value); setEndDate('') }}
+                  min={today.toISOString().split('T')[0]}
+                />
               </div>
+              <div className="space-y-1.5">
+                <Label>Data de fi</Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  min={startDate}
+                />
+              </div>
+            </div>
 
-              {workingDays > 0 && (
-                <div className={`rounded-lg px-4 py-3 ${workingDays > remaining ? 'bg-r
+            {workingDays > 0 && (
+              <div className={`rounded-lg px-4 py-3 ${workingDays > remaining ? 'bg-red-50 dark:bg-red-900/20' : 'bg-tramit-blue-light dark:bg-blue-900/20'}`}>
+                <p className={`text-sm font-medium ${workingDays > remaining ? 'text-red-700 dark:text-red-400' : 'text-tramit-blue dark:text-blue-300'}`}>
+                  Dies laborables: <span className="text-lg font-bold">{workingDays}</span>
+                  {workingDays > remaining && <span className="ml-2">⚠️ Superes el saldo ({remaining} disponibles)</span>}
+                </p>
+              </div>
+            )}
+
+            {hasConflict && (
+              <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 px-3 py-2.5 rounded-lg">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">Ja tens una sol·licitud en aquestes dates.</p>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label>Notes <span className="text-muted-foreground">(opcional)</span></Label>
+              <Input
+                placeholder="Afegeix una nota si cal..."
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 text-red-600 text-sm">
+                <AlertTriangle className="h-4 w-4" />{error}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Button onClick={handleSubmit} variant="tramit" disabled={!canSubmit || saving} className="flex items-center gap-2">
+                <Umbrella className="h-4 w-4" />
+                {saving ? 'Enviant...' : 'Enviar sol·licitud'}
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/worker/vacances">Cancel·lar</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!startDate && (
+        <div className="flex items-center gap-2 text-muted-foreground bg-muted/50 px-4 py-3 rounded-lg">
+          <Info className="h-4 w-4 shrink-0" />
+          <p className="text-sm">Clica al calendari per seleccionar la data d&apos;inici. Després clica la data de fi.</p>
+        </div>
+      )}
+    </div>
+  )
+}
