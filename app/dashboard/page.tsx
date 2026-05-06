@@ -294,3 +294,154 @@ export default async function DashboardPage() {
                   end_date: string
                   working_days?: number
                 }) => {
+                  const p = Array.isArray(req.profiles) ? req.profiles[0] : req.profiles
+                  const color = (p as { color?: string } | null)?.color || '#2272A3'
+                  const name = (p as { full_name?: string } | null)?.full_name || '—'
+                  const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+
+                  return (
+                    <li key={req.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                      <div
+                        className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ backgroundColor: color }}
+                      >
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {req.start_date} → {req.end_date}
+                          {req.working_days ? ` · ${req.working_days} dies` : ''}
+                        </p>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES.pending}`}>
+                        Pendent
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Fila secundària: qui hi és avui + saldos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Qui no hi és avui */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Absents avui</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(vacationsTodayCount || 0) === 0 && (unavailableCount || 0) === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Tot l&apos;equip disponible avui</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {vacancesAvui?.map((abs: {
+                  id: string
+                  profiles?: { full_name?: string; color?: string } | { full_name?: string; color?: string }[] | null
+                }) => {
+                  const p = Array.isArray(abs.profiles) ? abs.profiles[0] : abs.profiles
+                  const color = (p as { color?: string } | null)?.color || '#2272A3'
+                  const name = (p as { full_name?: string } | null)?.full_name || '—'
+                  const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                  return (
+                    <div key={abs.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50">
+                      <div className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ backgroundColor: color }}>
+                        {initials}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{name}</p>
+                        <p className="text-xs text-muted-foreground">Vacances</p>
+                      </div>
+                      <Umbrella className="h-4 w-4 text-tramit-blue shrink-0" />
+                    </div>
+                  )
+                })}
+                {noDisponiblesAvui?.map((abs: {
+                  id: string
+                  type: string
+                  profiles?: { full_name?: string; color?: string } | { full_name?: string; color?: string }[] | null
+                }) => {
+                  const p = Array.isArray(abs.profiles) ? abs.profiles[0] : abs.profiles
+                  const color = (p as { color?: string } | null)?.color || '#64748b'
+                  return (
+                    <div key={abs.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50">
+                      <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                        <UserX className="h-4 w-4 text-slate-500" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-muted-foreground">No disponible</p>
+                        <p className="text-xs text-muted-foreground">Absència registrada</p>
+                      </div>
+                      <UserX className="h-4 w-4 text-slate-400 shrink-0" />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Saldos de vacances */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Saldos {currentYear}</CardTitle>
+              <Link href="/dashboard/vacances" className="text-xs text-tramit-blue hover:underline flex items-center gap-1">
+                Tots <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!lowBalances || lowBalances.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Sense dades de saldos</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {lowBalances.map((bal: {
+                  id: string
+                  total_days: number
+                  used_days: number
+                  pending_days: number
+                  profiles?: { full_name?: string; color?: string } | { full_name?: string; color?: string }[] | null
+                }) => {
+                  const p = Array.isArray(bal.profiles) ? bal.profiles[0] : bal.profiles
+                  const color = (p as { color?: string } | null)?.color || '#2272A3'
+                  const name = (p as { full_name?: string } | null)?.full_name || '—'
+                  const remaining = bal.total_days - bal.used_days
+                  const pct = bal.total_days > 0 ? Math.round((bal.used_days / bal.total_days) * 100) : 0
+
+                  return (
+                    <div key={bal.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium">{name.split(' ')[0]}</span>
+                        <span className="text-muted-foreground">
+                          <span className="font-semibold text-foreground">{remaining}</span> restants
+                          {bal.pending_days > 0 && <span className="text-amber-500 ml-1">({bal.pending_days} pend.)</span>}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: color }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
