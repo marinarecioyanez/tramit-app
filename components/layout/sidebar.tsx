@@ -14,6 +14,7 @@ import {
   Home,
   LogOut,
   UserCircle,
+  Shield,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { TramitLogo } from './logo'
@@ -34,13 +35,14 @@ const adminNavItems: NavItem[] = [
   { label: 'Informes', href: '/dashboard/informes', icon: BarChart3 },
   { label: 'Usuaris', href: '/dashboard/usuaris', icon: UserCircle },
   { label: 'Configuració', href: '/dashboard/configuracio', icon: Settings },
-  { label: 'Auditoria', href: '/dashboard/auditoria', icon: FileText },
+  { label: 'Auditoria', href: '/dashboard/auditoria', icon: Shield },
 ]
 
 const workerNavItems: NavItem[] = [
   { label: 'Inici', href: '/worker', icon: Home },
   { label: 'Agenda', href: '/worker/agenda', icon: Calendar },
   { label: 'Vacances', href: '/worker/vacances', icon: Umbrella },
+  { label: 'El meu perfil', href: '/worker/perfil', icon: UserCircle },
 ]
 
 interface SidebarProps {
@@ -50,17 +52,15 @@ interface SidebarProps {
 
 export function Sidebar({ profile, onSignOut }: SidebarProps) {
   const pathname = usePathname()
-  const isAdmin = profile.role === 'admin'
+  const isAdmin = profile.role === 'admin' || profile.role === 'supervisor'
   const navItems = isAdmin ? adminNavItems : workerNavItems
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-[220px] flex flex-col bg-tramit-blue-dark text-white z-40">
-      {/* Logo */}
       <div className="flex items-center justify-center py-5 px-4 border-b border-white/10">
         <TramitLogo size="sm" />
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2">
         <ul className="space-y-1">
           {navItems.map((item) => {
@@ -73,15 +73,13 @@ export function Sidebar({ profile, onSignOut }: SidebarProps) {
 
             return (
               <li key={item.href}>
-                <Link
-                  href={item.href}
+                <Link href={item.href}
                   className={cn(
                     'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-150',
                     isActive
                       ? 'bg-white/20 text-white'
                       : 'text-white/70 hover:bg-white/10 hover:text-white'
-                  )}
-                >
+                  )}>
                   <Icon className="h-4 w-4 shrink-0" />
                   {item.label}
                 </Link>
@@ -91,40 +89,27 @@ export function Sidebar({ profile, onSignOut }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* User section */}
       <div className="border-t border-white/10 p-3">
         <div className="flex items-center gap-3 rounded-md px-2 py-2">
-          <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold shrink-0">
+          <div
+            className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+            style={{ backgroundColor: (profile as Profile & { color?: string }).color || 'rgba(255,255,255,0.2)', color: 'white' }}
+          >
             {profile.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profile.avatar_url}
-                alt={profile.full_name}
-                className="h-8 w-8 rounded-full object-cover"
-              />
+              <img src={profile.avatar_url} alt={profile.full_name} className="h-8 w-8 rounded-full object-cover" />
             ) : (
               getInitials(profile.full_name)
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white truncate">
-              {profile.full_name}
-            </p>
+            <p className="text-xs font-semibold text-white truncate">{profile.full_name}</p>
             <p className="text-xs text-white/50 truncate">{profile.email}</p>
           </div>
         </div>
-        <div className="mt-1 space-y-1">
-          <Link
-            href={isAdmin ? '/dashboard/perfil' : '/worker/perfil'}
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-xs text-white/70 hover:bg-white/10 hover:text-white transition-colors"
-          >
-            <UserCircle className="h-3.5 w-3.5" />
-            El meu perfil
-          </Link>
-          <button
-            onClick={onSignOut}
-            className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-xs text-white/70 hover:bg-white/10 hover:text-white transition-colors"
-          >
+        <div className="mt-1">
+          <button onClick={onSignOut}
+            className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-xs text-white/70 hover:bg-white/10 hover:text-white transition-colors">
             <LogOut className="h-3.5 w-3.5" />
             Tancar sessió
           </button>
