@@ -4,23 +4,26 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function RootPage() {
-  const supabase = createClient()
+  try {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      redirect('/login')
+    }
 
-  if (!user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role === 'admin' || profile?.role === 'supervisor') {
+      redirect('/dashboard')
+    }
+
+    redirect('/worker')
+  } catch {
     redirect('/login')
   }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role === 'admin' || profile?.role === 'supervisor') {
-    redirect('/dashboard')
-  }
-
-  redirect('/worker')
 }
