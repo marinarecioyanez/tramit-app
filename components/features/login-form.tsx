@@ -21,81 +21,66 @@ export function LoginForm() {
   const [resetSent, setResetSent] = useState(false)
   const [language, setLanguage] = useState<'ca' | 'es'>('ca')
 
-  const supabase = createClient()
-
-  const t = {
-    ca: {
-      subtitle: 'Plataforma interna de gestió',
-      emailLabel: 'Correu electrònic',
-      emailPlaceholder: 'nom@tramiteconomistes.com',
-      passwordLabel: 'Contrasenya',
-      loginButton: 'Entrar',
-      forgotPassword: 'He oblidat la contrasenya',
-      resetTitle: 'Recuperar accés',
-      resetDesc: "T'enviarem un correu per restablir la contrasenya.",
-      sendReset: 'Enviar correu',
-      backToLogin: '← Tornar',
-      resetSent: "Correu enviat! Revisa la teva safata d'entrada.",
-      errorInvalid: 'Credencials incorrectes. Verifica el correu i la contrasenya.',
-      errorGeneral: "S'ha produït un error. Torna-ho a intentar.",
-    },
-    es: {
-      subtitle: 'Plataforma interna de gestión',
-      emailLabel: 'Correo electrónico',
-      emailPlaceholder: 'nombre@tramiteconomistes.com',
-      passwordLabel: 'Contraseña',
-      loginButton: 'Entrar',
-      forgotPassword: 'He olvidado la contraseña',
-      resetTitle: 'Recuperar acceso',
-      resetDesc: 'Te enviaremos un correo para restablecer la contraseña.',
-      sendReset: 'Enviar correo',
-      backToLogin: '← Volver',
-      resetSent: '¡Correo enviado! Revisa tu bandeja de entrada.',
-      errorInvalid: 'Credenciales incorrectas. Verifica el correo y la contraseña.',
-      errorGeneral: 'Se ha producido un error. Inténtalo de nuevo.',
-    },
-  }[language]
+  const t = language === 'ca' ? {
+    subtitle: 'Plataforma interna de gestió',
+    emailLabel: 'Correu electrònic',
+    emailPlaceholder: 'nom@exemple.com',
+    passwordLabel: 'Contrasenya',
+    loginButton: 'Entrar',
+    forgotPassword: 'He oblidat la contrasenya',
+    resetTitle: 'Recuperar accés',
+    resetDesc: "T'enviarem un correu per restablir la contrasenya.",
+    sendReset: 'Enviar correu',
+    backToLogin: '← Tornar',
+    resetSent: "Correu enviat! Revisa la teva safata d'entrada.",
+    errorInvalid: 'Credencials incorrectes.',
+    errorGeneral: "S'ha produït un error. Torna-ho a intentar.",
+  } : {
+    subtitle: 'Plataforma interna de gestión',
+    emailLabel: 'Correo electrónico',
+    emailPlaceholder: 'nombre@ejemplo.com',
+    passwordLabel: 'Contraseña',
+    loginButton: 'Entrar',
+    forgotPassword: 'He olvidado la contraseña',
+    resetTitle: 'Recuperar acceso',
+    resetDesc: 'Te enviaremos un correo para restablecer la contraseña.',
+    sendReset: 'Enviar correo',
+    backToLogin: '← Volver',
+    resetSent: '¡Correo enviado! Revisa tu bandeja de entrada.',
+    errorInvalid: 'Credenciales incorrectas.',
+    errorGeneral: 'Se ha producido un error. Inténtalo de nuevo.',
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
-    try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      })
+    const supabase = createClient()
 
-      if (authError || !data.user) {
-        setError(t.errorInvalid)
-        setLoading(false)
-        return
-      }
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
 
-      // Usar window.location per forçar recàrrega completa
-      // i que el servidor llegeixi la cookie de sessió correctament
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single()
-
-      if (profile?.role === 'admin' || profile?.role === 'supervisor') {
-        window.location.href = '/dashboard'
-      } else {
-        window.location.href = '/worker'
-      }
-    } catch {
-      setError(t.errorGeneral)
+    if (authError || !data.user) {
+      setError(t.errorInvalid)
       setLoading(false)
+      return
     }
+
+    // Esperar un moment perquè la cookie es propagui
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // Redirecció forçada amb recàrrega completa
+    window.location.replace('/dashboard')
   }
 
   async function handleReset(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setLoading(true)
+    const supabase = createClient()
     try {
       await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -130,12 +115,8 @@ export function LoginForm() {
           {!showReset ? (
             <>
               <div className="mb-6">
-                <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">
-                  Accés a Tràmit
-                </h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  {t.subtitle}
-                </p>
+                <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Accés a Tràmit</h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t.subtitle}</p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4">
@@ -246,19 +227,9 @@ export function LoginForm() {
         </div>
 
         <div className="flex items-center justify-center gap-3 mt-6">
-          <button
-            onClick={() => setLanguage('ca')}
-            className={cn('text-sm font-medium px-2 py-1 rounded transition-colors',
-              language === 'ca' ? 'text-tramit-blue font-semibold' : 'text-slate-400 hover:text-slate-600'
-            )}
-          >CAT</button>
+          <button onClick={() => setLanguage('ca')} className={cn('text-sm font-medium px-2 py-1 rounded transition-colors', language === 'ca' ? 'text-tramit-blue font-semibold' : 'text-slate-400 hover:text-slate-600')}>CAT</button>
           <span className="text-slate-300">|</span>
-          <button
-            onClick={() => setLanguage('es')}
-            className={cn('text-sm font-medium px-2 py-1 rounded transition-colors',
-              language === 'es' ? 'text-tramit-blue font-semibold' : 'text-slate-400 hover:text-slate-600'
-            )}
-          >ESP</button>
+          <button onClick={() => setLanguage('es')} className={cn('text-sm font-medium px-2 py-1 rounded transition-colors', language === 'es' ? 'text-tramit-blue font-semibold' : 'text-slate-400 hover:text-slate-600')}>ESP</button>
         </div>
       </div>
     </div>
