@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/utils/auth-guard'
 
 export async function POST(request: Request) {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
   try {
     const { userId, password } = await request.json()
 
@@ -10,7 +14,6 @@ export async function POST(request: Request) {
     }
 
     const supabase = createServiceClient()
-
     const { error } = await supabase.auth.admin.updateUserById(userId, { password })
 
     if (error) {
