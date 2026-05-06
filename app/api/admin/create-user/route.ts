@@ -11,7 +11,6 @@ export async function POST(request: Request) {
 
     const supabase = createServiceClient()
 
-    // Crear usuari a Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -23,7 +22,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: authError.message }, { status: 400 })
     }
 
-    // Actualitzar perfil amb dades addicionals
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
