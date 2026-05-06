@@ -1,13 +1,34 @@
-import { PlaceholderPage } from '@/components/features/placeholder-page'
+export const dynamic = 'force-dynamic'
+
+import { createClient } from '@/lib/supabase/server'
+import { SettingsClient } from '@/components/features/settings-client'
 
 export const metadata = { title: 'Configuració — Tràmit Economistes' }
 
-export default function ConfiguracioPage() {
+export default async function ConfiguracioPage() {
+  const supabase = createClient()
+
+  const { data: settings } = await supabase
+    .from('settings')
+    .select('*')
+    .order('key')
+
+  const { data: holidays } = await supabase
+    .from('holidays')
+    .select('*')
+    .eq('year', 2026)
+    .order('date')
+
+  const { data: closures } = await supabase
+    .from('company_closures')
+    .select('*')
+    .order('date')
+
   return (
-    <PlaceholderPage
-      title="Configuració anual"
-      description="Gestió de festius, tancaments d'empresa, límits de vacances simultànies, períodes crítics i saldos per any."
-      phase="Fase 2 — Configuració anual"
+    <SettingsClient
+      settings={settings || []}
+      holidays={holidays || []}
+      closures={closures || []}
     />
   )
 }
