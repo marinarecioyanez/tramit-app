@@ -122,11 +122,15 @@ export function AuditoriaClient({ logs, profiles }: { logs: Log[]; profiles: Pro
   }, [logs])
 
   const actionTypes = useMemo(() => {
-    return [...new Set(logs.map(l => l.action))].sort()
+    const seen: Record<string, boolean> = {}
+    logs.forEach(l => { seen[l.action] = true })
+    return Object.keys(seen).sort()
   }, [logs])
 
   const entityTypes = useMemo(() => {
-    return [...new Set(logs.map(l => l.entity_type))].sort()
+    const seen: Record<string, boolean> = {}
+    logs.forEach(l => { seen[l.entity_type] = true })
+    return Object.keys(seen).sort()
   }, [logs])
 
   const filtered = useMemo(() => {
