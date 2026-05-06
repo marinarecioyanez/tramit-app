@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Calendar, Umbrella, Users, FileText,
   BarChart3, Settings, ClipboardList, Home, LogOut,
-  UserCircle, Shield,
+  UserCircle, Shield, BookOpen,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { TramitLogo } from './logo'
