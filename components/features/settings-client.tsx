@@ -288,4 +288,50 @@ export function SettingsClient({ settings, holidays, closures }: SettingsClientP
                     <div key={closure.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                       <div className="flex items-center gap-3">
                         <div className="text-center bg-slate-600 text-white rounded-lg p-2 min-w-[48px]">
-                          <div className="text-xs font-medium">{MONTH_NAMES[date.getMonth()]}</di
+                          <div className="text-xs font-medium">{MONTH_NAMES[date.getMonth()]}</div>
+                          <div className="text-lg font-bold leading-none">{date.getDate()}</div>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{closure.name}</p>
+                          <p className="text-xs text-muted-foreground">Any {closure.year}</p>
+                        </div>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        closure.deducts_vacation
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      }`}>
+                        {closure.deducts_vacation ? 'Descompte vacances' : 'Sense descompte'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {showSaveButton && (
+        <div className="flex items-center gap-3">
+          <Button onClick={handleSave} variant="tramit" disabled={saving} className="flex items-center gap-2">
+            <Save className="h-4 w-4" />
+            {saving ? 'Desant...' : 'Desar canvis'}
+          </Button>
+          {saved && (
+            <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+              <CheckCircle className="h-4 w-4" />
+              <span className="text-sm font-medium">Desat correctament</span>
+            </div>
+          )}
+          {error && (
+            <div className="flex items-center gap-1.5 text-red-600">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
