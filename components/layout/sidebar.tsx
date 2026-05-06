@@ -32,6 +32,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Absències', href: '/dashboard/absencies', icon: ClipboardList },
   { label: 'Clients', href: '/dashboard/clients', icon: Users },
   { label: 'Informes', href: '/dashboard/informes', icon: BarChart3 },
+  { label: 'Usuaris', href: '/dashboard/usuaris', icon: UserCircle },
   { label: 'Configuració', href: '/dashboard/configuracio', icon: Settings },
   { label: 'Auditoria', href: '/dashboard/auditoria', icon: FileText },
 ]
