@@ -2,13 +2,15 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { AgendaClient } from '@/components/features/agenda-client'
+import { NovaCitaButton } from '@/components/features/nova-cita-button'
 
 export const metadata = { title: 'Agenda — Tràmit Economistes' }
 
 export default async function WorkerAgendaPage() {
   const supabase = createClient()
-
   const now = new Date()
+  const { data: { user } } = await supabase.auth.getUser()
+
   const startOfMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 3, 0).toISOString()
 
@@ -36,11 +38,24 @@ export default async function WorkerAgendaPage() {
     .eq('year', now.getFullYear())
 
   return (
-    <AgendaClient
-      absences={absences || []}
-      profiles={profiles || []}
-      holidays={holidays || []}
-      closures={closures || []}
-    />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Agenda</h1>
+          <p className="text-muted-foreground mt-1">Calendari de l&apos;equip</p>
+        </div>
+        <NovaCitaButton
+          profiles={profiles || []}
+          currentUserId={user!.id}
+          currentUserRole="worker"
+        />
+      </div>
+      <AgendaClient
+        absences={absences || []}
+        profiles={profiles || []}
+        holidays={holidays || []}
+        closures={closures || []}
+      />
+    </div>
   )
 }
