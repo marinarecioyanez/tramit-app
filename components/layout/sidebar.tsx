@@ -25,6 +25,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Clients', href: '/dashboard/clients', icon: Users },
   { label: 'Informes', href: '/dashboard/informes', icon: BarChart3 },
   { label: 'Usuaris', href: '/dashboard/usuaris', icon: UserCircle },
+  { label: 'Assessor fiscal', href: '/dashboard/assessor', icon: BookOpen },
   { label: 'Configuració', href: '/dashboard/configuracio', icon: Settings },
   { label: 'Auditoria', href: '/dashboard/auditoria', icon: Shield },
 ]
@@ -33,6 +34,7 @@ const workerNavItems: NavItem[] = [
   { label: 'Inici', href: '/worker', icon: Home },
   { label: 'Agenda', href: '/worker/agenda', icon: Calendar },
   { label: 'Vacances', href: '/worker/vacances', icon: Umbrella },
+  { label: 'Assessor fiscal', href: '/worker/assessor', icon: BookOpen },
   { label: 'El meu perfil', href: '/worker/perfil', icon: UserCircle },
 ]
 
