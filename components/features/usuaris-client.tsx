@@ -6,7 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, X, Pencil, Trash2, CheckCircle, AlertTriangle, UserCircle } from 'lucide-react'
+import {
+  Plus, X, Pencil, Trash2, CheckCircle, AlertTriangle,
+  UserCircle, KeyRound, Eye, EyeOff
+} from 'lucide-react'
 
 interface Profile {
   id: string
@@ -26,6 +29,8 @@ const PRESET_COLORS = [
   '#3498DB', '#2980B9', '#E91E63', '#C2185B',
   '#FF5722', '#795548', '#607D8B', '#455A64',
 ]
+
+const DEFAULT_PASSWORD = 'Tramit2026!'
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administradora',
@@ -50,6 +55,10 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [showResetModal, setShowResetModal] = useState<Profile | null>(null)
+  const [newPassword, setNewPassword] = useState(DEFAULT_PASSWORD)
+  const [showPassword, setShowPassword] = useState(false)
+  const [useCustomPassword, setUseCustomPassword] = useState(false)
 
   const [form, setForm] = useState({
     full_name: '',
@@ -57,11 +66,10 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
     phone: '',
     role: 'worker',
     color: '#2272A3',
-    password: '',
+    password: DEFAULT_PASSWORD,
   })
 
   const supabase = createClient()
-
   const workers = profiles.filter(p => p.role === 'worker')
   const admins = profiles.filter(p => p.role === 'admin' || p.role === 'supervisor')
 
@@ -73,17 +81,25 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
       phone: profile.phone || '',
       role: profile.role,
       color: profile.color || '#2272A3',
-      password: '',
+      password: DEFAULT_PASSWORD,
     })
     setShowForm(true)
     setError(null)
   }
 
   function resetForm() {
-    setForm({ full_name: '', email: '', phone: '', role: 'worker', color: '#2272A3', password: '' })
+    setForm({ full_name: '', email: '', phone: '', role: 'worker', color: '#2272A3', password: DEFAULT_PASSWORD })
     setEditingId(null)
     setShowForm(false)
     setError(null)
+  }
+
+  function showSuccess(msg: string) {
+    setSuccess(msg)
+    setTimeout(() => {
+      setSuccess(null)
+      window.location.reload()
+    }, 2000)
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -93,7 +109,6 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
 
     try {
       if (editingId) {
-        // Actualitzar perfil existent
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -105,9 +120,8 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
           .eq('id', editingId)
 
         if (updateError) throw updateError
-        setSuccess('Usuari actualitzat correctament')
+        showSuccess('Usuari actualitzat correctament')
       } else {
-        // Crear nou usuari via API route
         const res = await fetch('/api/admin/create-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -123,14 +137,10 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
 
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Error creant usuari')
-        setSuccess('Usuari creat correctament')
+        showSuccess(`Usuari creat. Contrasenya: ${form.password}`)
       }
 
       resetForm()
-      setTimeout(() => {
-        setSuccess(null)
-        window.location.reload()
-      }, 1500)
     } catch (err) {
       setError(err instanceof Error ? err.message : "S'ha produït un error")
     } finally {
@@ -138,14 +148,43 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
     }
   }
 
-  async function handleToggleActive(profile: Profile) {
-    setLoading(profile.id)
-    await supabase
-      .from('profiles')
-      .update({ active: !profile.active })
-      .eq('id', profile.id)
-    setLoading(null)
-    window.location.reload()
+  async function handleDelete(profileId: string) {
+    setLoading(profileId)
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: profileId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      showSuccess('Usuari eliminat correctament')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error eliminant usuari')
+    } finally {
+      setLoading(null)
+      setDeleteConfirm(null)
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!showResetModal) return
+    setLoading('reset')
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: showResetModal.id, password: newPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setShowResetModal(null)
+      showSuccess(`Contrasenya restablerta a: ${newPassword}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error restablint contrasenya')
+    } finally {
+      setLoading(null)
+    }
   }
 
   async function handleColorChange(profileId: string, color: string) {
@@ -175,7 +214,93 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
         </div>
       )}
 
-      {/* Formulari */}
+      {error && (
+        <div className="flex items-center gap-2 text-red-600 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-lg">
+          <AlertTriangle className="h-4 w-4" />
+          <span className="text-sm">{error}</span>
+          <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Modal restablir contrasenya */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <KeyRound className="h-4 w-4" />
+                  Restablir contrasenya
+                </CardTitle>
+                <button onClick={() => setShowResetModal(null)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Restablint contrasenya de <strong>{showResetModal.full_name}</strong> ({showResetModal.email})
+              </p>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="custom-pwd"
+                  checked={useCustomPassword}
+                  onChange={e => {
+                    setUseCustomPassword(e.target.checked)
+                    if (!e.target.checked) setNewPassword(DEFAULT_PASSWORD)
+                  }}
+                  className="rounded"
+                />
+                <label htmlFor="custom-pwd" className="text-sm">Usar contrasenya personalitzada</label>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Nova contrasenya</Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    disabled={!useCustomPassword}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {!useCustomPassword && (
+                  <p className="text-xs text-muted-foreground">
+                    S&apos;usarà la contrasenya estàndard: <strong>{DEFAULT_PASSWORD}</strong>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="tramit"
+                  onClick={handleResetPassword}
+                  disabled={loading === 'reset' || newPassword.length < 6}
+                >
+                  {loading === 'reset' ? 'Restablint...' : 'Restablir contrasenya'}
+                </Button>
+                <Button variant="outline" onClick={() => setShowResetModal(null)}>
+                  Cancel·lar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Formulari nou/editar usuari */}
       {showForm && (
         <Card className="border-tramit-blue/30">
           <CardHeader className="pb-3">
@@ -235,28 +360,43 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
                 </div>
 
                 {!editingId && (
-                  <div className="space-y-1.5">
-                    <Label>Contrasenya inicial *</Label>
-                    <Input
-                      type="password"
-                      value={form.password}
-                      onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                      placeholder="Mínim 6 caràcters"
-                      required={!editingId}
-                      minLength={6}
-                    />
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label>Contrasenya inicial</Label>
+                    <div className="relative max-w-xs">
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        value={form.password}
+                        onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                        placeholder="Mínim 6 caràcters"
+                        required
+                        minLength={6}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Per defecte: <strong>{DEFAULT_PASSWORD}</strong> — l&apos;usuari la podrà canviar des del seu perfil
+                    </p>
                   </div>
                 )}
               </div>
 
-              {/* Selector de color */}
+              {/* Color */}
               <div className="space-y-2">
-                <Label>Color identificatiu al calendari</Label>
+                <Label>Color al calendari</Label>
                 <div className="flex items-center gap-3 flex-wrap">
                   <div
-                    className="h-10 w-10 rounded-full border-4 border-white shadow-md shrink-0"
+                    className="h-10 w-10 rounded-full border-4 border-white shadow-md shrink-0 flex items-center justify-center text-white text-xs font-bold"
                     style={{ backgroundColor: form.color }}
-                  />
+                  >
+                    {form.full_name ? getInitials(form.full_name) : '?'}
+                  </div>
                   <div className="flex gap-2 flex-wrap">
                     {PRESET_COLORS.map(color => (
                       <button
@@ -274,13 +414,6 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
                   </div>
                 </div>
               </div>
-
-              {error && (
-                <div className="flex items-center gap-2 text-red-600 text-sm">
-                  <AlertTriangle className="h-4 w-4" />
-                  {error}
-                </div>
-              )}
 
               <div className="flex gap-2">
                 <Button type="submit" variant="tramit" disabled={loading === 'save'}>
@@ -303,8 +436,7 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
         <CardContent className="p-0">
           <div className="divide-y divide-border">
             {workers.map(profile => (
-              <div key={profile.id} className={`flex items-center gap-4 px-6 py-4 ${!profile.active ? 'opacity-50' : ''}`}>
-                {/* Avatar amb color */}
+              <div key={profile.id} className={`flex items-center gap-3 px-6 py-4 ${!profile.active ? 'opacity-50' : ''}`}>
                 <div
                   className="h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
                   style={{ backgroundColor: profile.color || '#2272A3' }}
@@ -322,13 +454,11 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
                       <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">Inactiu</span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{profile.email}</p>
-                  {profile.phone && (
-                    <p className="text-xs text-muted-foreground">{profile.phone}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground">{profile.email}</p>
+                  {profile.phone && <p className="text-xs text-muted-foreground">{profile.phone}</p>}
                 </div>
 
-                {/* Color ràpid */}
+                {/* Selector de color ràpid */}
                 <div className="relative group shrink-0">
                   <div
                     className="h-6 w-6 rounded-full cursor-pointer hover:scale-110 transition-transform border-2 border-white shadow"
@@ -357,43 +487,34 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
-                    onClick={() => handleToggleActive(profile)}
-                    disabled={loading === profile.id}
-                    className={`p-1.5 rounded-md transition-colors text-xs font-medium ${
-                      profile.active
-                        ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
-                        : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
-                    }`}
-                    title={profile.active ? 'Desactivar' : 'Activar'}
+                    onClick={() => { setShowResetModal(profile); setNewPassword(DEFAULT_PASSWORD); setUseCustomPassword(false) }}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-tramit-blue hover:bg-tramit-blue-light transition-colors"
+                    title="Restablir contrasenya"
                   >
-                    {profile.active ? 'Desactivar' : 'Activar'}
+                    <KeyRound className="h-3.5 w-3.5" />
                   </button>
                   {deleteConfirm === profile.id ? (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-md">
+                      <span className="text-xs text-red-700 dark:text-red-400">Eliminar?</span>
                       <button
-                        onClick={async () => {
-                          setLoading(profile.id)
-                          await supabase.from('profiles').update({ active: false }).eq('id', profile.id)
-                          setDeleteConfirm(null)
-                          setLoading(null)
-                          window.location.reload()
-                        }}
-                        className="text-xs text-red-600 font-medium hover:underline"
+                        onClick={() => handleDelete(profile.id)}
+                        disabled={loading === profile.id}
+                        className="text-xs text-red-600 font-bold hover:underline"
                       >
-                        Confirmar
+                        Sí
                       </button>
                       <button
                         onClick={() => setDeleteConfirm(null)}
                         className="text-xs text-muted-foreground hover:underline"
                       >
-                        Cancel·lar
+                        No
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => setDeleteConfirm(profile.id)}
                       className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      title="Eliminar"
+                      title="Eliminar usuari"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -413,7 +534,7 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
         <CardContent className="p-0">
           <div className="divide-y divide-border">
             {admins.map(profile => (
-              <div key={profile.id} className="flex items-center gap-4 px-6 py-4">
+              <div key={profile.id} className="flex items-center gap-3 px-6 py-4">
                 <div
                   className="h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
                   style={{ backgroundColor: profile.color || '#1A5F8A' }}
@@ -427,23 +548,32 @@ export function UsuarisClient({ profiles }: { profiles: Profile[] }) {
                       {ROLE_LABELS[profile.role]}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{profile.email}</p>
+                  <p className="text-xs text-muted-foreground">{profile.email}</p>
                 </div>
-                <button
-                  onClick={() => startEdit(profile)}
-                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => startEdit(profile)}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => { setShowResetModal(profile); setNewPassword(DEFAULT_PASSWORD); setUseCustomPassword(false) }}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-tramit-blue hover:bg-tramit-blue-light transition-colors"
+                    title="Restablir contrasenya"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+      <p className="text-xs text-muted-foreground flex items-center gap-1.5 pb-4">
         <UserCircle className="h-3.5 w-3.5" />
-        Per eliminar un usuari definitivament, contacta amb el suport tècnic.
+        Els usuaris poden canviar la seva contrasenya des de &quot;El meu perfil&quot; al sidebar.
       </p>
     </div>
   )
