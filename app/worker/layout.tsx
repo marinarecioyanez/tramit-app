@@ -11,7 +11,6 @@ export default async function WorkerLayout({
   children: React.ReactNode
 }) {
   const supabase = createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -28,11 +27,7 @@ export default async function WorkerLayout({
     redirect('/login')
   }
 
-  if (!profile.active) {
-    redirect('/login')
-  }
-
-  if (profile.role === 'admin') {
+  if (profile.role === 'admin' || profile.role === 'supervisor') {
     redirect('/dashboard')
   }
 
