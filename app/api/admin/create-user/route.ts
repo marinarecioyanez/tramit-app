@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/utils/auth-guard'
+import { sendEmail, emailBenvinguda } from '@/lib/resend'
 
 export async function POST(request: Request) {
   const auth = await requireAdmin()
@@ -40,6 +41,14 @@ export async function POST(request: Request) {
     if (profileError) {
       return NextResponse.json({ error: profileError.message }, { status: 400 })
     }
+
+    // Enviar email de benvinguda
+    await sendEmail(emailBenvinguda({
+      workerEmail: email,
+      workerName: full_name,
+      password,
+      appUrl: process.env.NEXTAUTH_URL || 'https://tramit-app.vercel.app',
+    }))
 
     return NextResponse.json({ success: true, userId: authData.user.id })
   } catch (error) {
