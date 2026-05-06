@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/utils/auth-guard'
 
 export async function POST(request: Request) {
+  const auth = await requireAdmin()
+  if ('error' in auth) return auth.error
+
   try {
     const { email, password, full_name, phone, role, color } = await request.json()
 
