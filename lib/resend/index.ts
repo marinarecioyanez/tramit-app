@@ -1,23 +1,16 @@
-/**
- * Resend email integration
- * Fase 10 — notificacions i recordatoris
- */
-
 export interface EmailPayload {
   to: string | string[]
   subject: string
   html: string
   from?: string
-  replyTo?: string
 }
 
 const DEFAULT_FROM = 'Tràmit Economistes <noreply@tramiteconomistes.com>'
 
-// Fase 10: implementar enviament real amb Resend SDK
-export async function sendEmail(payload: EmailPayload): Promise<{ id: string }> {
+export async function sendEmail(payload: EmailPayload): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('[Resend] RESEND_API_KEY no configurada. Email no enviat:', payload.subject)
-    return { id: 'mock-id' }
+    console.warn('[Resend] API key no configurada. Email no enviat:', payload.subject)
+    return
   }
 
   const response = await fetch('https://api.resend.com/emails', {
@@ -31,22 +24,33 @@ export async function sendEmail(payload: EmailPayload): Promise<{ id: string }> 
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
-      reply_to: payload.replyTo,
     }),
   })
 
   if (!response.ok) {
     const error = await response.text()
-    throw new Error(`Resend error: ${error}`)
+    console.error('[Resend] Error enviant email:', error)
   }
-
-  return response.json()
 }
 
-/**
- * Email de nova sol·licitud de vacances per a les admins
- */
-export function buildVacationRequestEmail(params: {
+function baseTemplate(content: string): string {
+  return `
+    <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; color: #1a1a1a;">
+      <div style="background: #1A5F8A; padding: 24px; text-align: center; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 22px; letter-spacing: 2px;">TRÀMIT</h1>
+        <p style="color: #E8F4FB; margin: 4px 0 0; font-size: 13px;">economistes</p>
+      </div>
+      <div style="padding: 32px; background: #f9fafb; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        ${content}
+      </div>
+      <p style="text-align: center; font-size: 11px; color: #9ca3af; margin-top: 16px;">
+        Tràmit Economistes · Ús intern i confidencial
+      </p>
+    </div>
+  `
+}
+
+export function emailVacancesNova(params: {
   workerName: string
   startDate: string
   endDate: string
@@ -55,76 +59,93 @@ export function buildVacationRequestEmail(params: {
 }): EmailPayload {
   return {
     to: ['marina@tramiteconomistes.com', 'rosa@tramiteconomistes.com'],
-    subject: `Nova sol·licitud de vacances — ${params.workerName}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #1A5F8A; padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">TRÀMIT</h1>
-          <p style="color: #E8F4FB; margin: 4px 0 0; font-size: 14px;">economistes</p>
-        </div>
-        <div style="padding: 24px; background: #f9f9f9;">
-          <h2 style="color: #1A5F8A;">Nova sol·licitud de vacances</h2>
-          <p><strong>${params.workerName}</strong> ha sol·licitat vacances:</p>
-          <ul>
-            <li><strong>Del:</strong> ${params.startDate}</li>
-            <li><strong>Al:</strong> ${params.endDate}</li>
-            <li><strong>Dies laborables:</strong> ${params.workingDays}</li>
-          </ul>
-          <a href="${params.dashboardUrl}" 
-             style="display: inline-block; background: #2272A3; color: white; padding: 12px 24px; 
-                    text-decoration: none; border-radius: 6px; margin-top: 16px;">
-            Revisar sol·licitud
-          </a>
-        </div>
-        <div style="padding: 16px; text-align: center; font-size: 12px; color: #666;">
-          Tràmit Economistes — Ús intern i confidencial
-        </div>
-      </div>
-    `,
+    subject: `Sol·licitud de vacances — ${params.workerName}`,
+    html: baseTemplate(`
+      <h2 style="color: #1A5F8A; margin-top: 0;">Nova sol·licitud de vacances</h2>
+      <p><strong>${params.workerName}</strong> ha sol·licitat vacances:</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; width: 40%;">Del</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${params.startDate}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Al</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${params.endDate}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; color: #6b7280;">Dies laborables</td>
+          <td style="padding: 8px; font-weight: 600; color: #2272A3;">${params.workingDays}</td>
+        </tr>
+      </table>
+      <a href="${params.dashboardUrl}" style="display: inline-block; background: #2272A3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 8px;">
+        Revisar sol·licitud →
+      </a>
+    `),
   }
 }
 
-/**
- * Email de resolució de vacances per al treballador
- */
-export function buildVacationResolutionEmail(params: {
+export function emailVacancesDecisio(params: {
   workerEmail: string
   workerName: string
   approved: boolean
   startDate: string
   endDate: string
   workingDays: number
-  adminNote?: string
+  adminNote?: string | null
 }): EmailPayload {
+  const color = params.approved ? '#16a34a' : '#dc2626'
   const statusText = params.approved ? 'aprovades ✓' : 'rebutjades ✗'
-  const statusColor = params.approved ? '#16a34a' : '#dc2626'
+  const statusBg = params.approved ? '#f0fdf4' : '#fef2f2'
 
   return {
     to: params.workerEmail,
     subject: `Les teves vacances han estat ${statusText}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #1A5F8A; padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 24px;">TRÀMIT</h1>
-          <p style="color: #E8F4FB; margin: 4px 0 0; font-size: 14px;">economistes</p>
-        </div>
-        <div style="padding: 24px; background: #f9f9f9;">
-          <h2 style="color: ${statusColor};">
-            Vacances ${statusText}
-          </h2>
-          <p>Hola, <strong>${params.workerName}</strong>.</p>
-          <p>La teva sol·licitud de vacances ha estat <strong>${statusText}</strong>.</p>
-          <ul>
-            <li><strong>Del:</strong> ${params.startDate}</li>
-            <li><strong>Al:</strong> ${params.endDate}</li>
-            <li><strong>Dies laborables:</strong> ${params.workingDays}</li>
-          </ul>
-          ${params.adminNote ? `<p><strong>Nota:</strong> ${params.adminNote}</p>` : ''}
-        </div>
-        <div style="padding: 16px; text-align: center; font-size: 12px; color: #666;">
-          Tràmit Economistes — Ús intern i confidencial
-        </div>
+    html: baseTemplate(`
+      <div style="background: ${statusBg}; border-left: 4px solid ${color}; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+        <h2 style="color: ${color}; margin: 0;">Vacances ${statusText}</h2>
       </div>
-    `,
+      <p>Hola, <strong>${params.workerName}</strong>.</p>
+      <p>La teva sol·licitud de vacances ha estat <strong style="color: ${color};">${statusText}</strong>.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280; width: 40%;">Del</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${params.startDate}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #6b7280;">Al</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${params.endDate}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px; color: #6b7280;">Dies laborables</td>
+          <td style="padding: 8px; font-weight: 600;">${params.workingDays}</td>
+        </tr>
+      </table>
+      ${params.adminNote ? `<p style="color: #6b7280; font-style: italic;">Nota: ${params.adminNote}</p>` : ''}
+    `),
+  }
+}
+
+export function emailBenvinguda(params: {
+  workerEmail: string
+  workerName: string
+  password: string
+  appUrl: string
+}): EmailPayload {
+  return {
+    to: params.workerEmail,
+    subject: 'Benvingut/da a Tràmit Economistes',
+    html: baseTemplate(`
+      <h2 style="color: #1A5F8A; margin-top: 0;">Benvingut/da, ${params.workerName}!</h2>
+      <p>T'han creat un compte a l'aplicació interna de Tràmit Economistes.</p>
+      <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;">
+        <p style="margin: 0 0 8px; color: #6b7280; font-size: 13px;">LES TEVES CREDENCIALS</p>
+        <p style="margin: 4px 0;"><strong>Email:</strong> ${params.workerEmail}</p>
+        <p style="margin: 4px 0;"><strong>Contrasenya temporal:</strong> <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">${params.password}</code></p>
+      </div>
+      <p style="color: #dc2626; font-size: 13px;">⚠️ Canvia la contrasenya la primera vegada que entris, des de "El meu perfil".</p>
+      <a href="${params.appUrl}" style="display: inline-block; background: #2272A3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 8px;">
+        Accedir a l'app →
+      </a>
+    `),
   }
 }
