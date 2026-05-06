@@ -1,13 +1,46 @@
-import { PlaceholderPage } from '@/components/features/placeholder-page'
+export const dynamic = 'force-dynamic'
+
+import { createClient } from '@/lib/supabase/server'
+import { AgendaClient } from '@/components/features/agenda-client'
 
 export const metadata = { title: 'Agenda — Tràmit Economistes' }
 
-export default function AgendaPage() {
+export default async function AgendaPage() {
+  const supabase = createClient()
+
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 3, 0).toISOString()
+
+  const { data: absences } = await supabase
+    .from('absence_requests')
+    .select('*, profiles!absence_requests_user_id_fkey(full_name, color)')
+    .eq('status', 'approved')
+    .gte('end_date', startOfMonth.split('T')[0])
+    .lte('start_date', endOfMonth.split('T')[0])
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, color, role')
+    .eq('active', true)
+    .order('full_name')
+
+  const { data: holidays } = await supabase
+    .from('holidays')
+    .select('date, name')
+    .eq('year', now.getFullYear())
+
+  const { data: closures } = await supabase
+    .from('company_closures')
+    .select('date, name')
+    .eq('year', now.getFullYear())
+
   return (
-    <PlaceholderPage
-      title="Agenda global"
-      description="Vista del calendari general amb totes les cites, vacances i absències per a tots els treballadors."
-      phase="Fase 5 — Agenda global"
+    <AgendaClient
+      absences={absences || []}
+      profiles={profiles || []}
+      holidays={holidays || []}
+      closures={closures || []}
     />
   )
 }
