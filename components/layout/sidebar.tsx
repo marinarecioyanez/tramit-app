@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Calendar, Umbrella, Users, FileText,
   BarChart3, Settings, ClipboardList, Home, LogOut,
-  UserCircle, Shield, BookOpen, MessageSquare,
+  UserCircle, Shield, BookOpen, MessageSquare, CheckSquare,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { TramitLogo } from './logo'
@@ -29,6 +29,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Assessor fiscal', href: '/dashboard/assessor', icon: BookOpen },
   { label: 'Configuració', href: '/dashboard/configuracio', icon: Settings },
   { label: 'Auditoria', href: '/dashboard/auditoria', icon: Shield },
+  { label: 'Tasques', href: '/dashboard/tasques', icon: CheckSquare },
 ]
 
 const workerNavItems: NavItem[] = [
@@ -38,6 +39,7 @@ const workerNavItems: NavItem[] = [
   { label: 'Vacances', href: '/worker/vacances', icon: Umbrella },
   { label: 'Assessor fiscal', href: '/worker/assessor', icon: BookOpen },
   { label: 'El meu perfil', href: '/worker/perfil', icon: UserCircle },
+  { label: 'Tasques', href: '/worker/tasques', icon: CheckSquare },
 ]
 
 interface SidebarProps {
