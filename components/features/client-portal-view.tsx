@@ -60,7 +60,6 @@ export function ClientPortalView({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-tramit-blue-light via-white to-slate-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      {/* Header */}
       <header className="bg-tramit-blue-dark text-white py-4 px-6">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <TramitLogo size="sm" />
@@ -71,7 +70,6 @@ export function ClientPortalView({
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-        {/* Benvinguda */}
         <div className="text-center space-y-2">
           <div className="h-16 w-16 rounded-full bg-tramit-blue flex items-center justify-center text-white text-2xl font-bold mx-auto">
             {initials}
@@ -84,7 +82,6 @@ export function ClientPortalView({
           </p>
         </div>
 
-        {/* Info del client */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Les teves dades</CardTitle>
@@ -120,7 +117,6 @@ export function ClientPortalView({
           </CardContent>
         </Card>
 
-        {/* Properes cites */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -176,7 +172,6 @@ export function ClientPortalView({
           </CardContent>
         </Card>
 
-        {/* Contacte */}
         <Card>
           <CardContent className="pt-4 pb-4 text-center space-y-3">
             <p className="text-sm font-medium">
@@ -201,7 +196,6 @@ export function ClientPortalView({
           </CardContent>
         </Card>
 
-        {/* Footer */}
         <p className="text-center text-xs text-muted-foreground pb-4">
           Tràmit Economistes · Accés segur i confidencial
           <br />
