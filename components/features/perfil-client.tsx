@@ -10,6 +10,7 @@ import {
   CheckCircle, AlertTriangle, Eye, EyeOff,
   KeyRound, User, Bell, Globe, Palette
 } from 'lucide-react'
+import { PushNotifications } from './push-notifications'
 
 interface Profile {
   id: string
@@ -64,7 +65,7 @@ export function PerfilClient({ profile }: { profile: Profile }) {
   // Preferències
   const [language, setLanguage] = useState(profile.language || 'ca')
 
-  // Notificacions
+  // Notificacions app
   const [notifApp, setNotifApp] = useState(true)
   const [notifTelegram, setNotifTelegram] = useState(!!profile.telegram_chat_id)
 
@@ -108,7 +109,6 @@ export function PerfilClient({ profile }: { profile: Profile }) {
 
     setSaving(true)
 
-    // Verificar contrasenya actual
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: profile.email,
       password: currentPassword,
@@ -158,12 +158,16 @@ export function PerfilClient({ profile }: { profile: Profile }) {
           <h1 className="text-2xl font-bold">{profile.full_name}</h1>
           <p className="text-muted-foreground text-sm">{profile.email}</p>
           <span className="text-xs bg-muted px-2 py-0.5 rounded-full mt-1 inline-block">
-            {profile.role === 'admin' ? 'Administradora' : profile.role === 'supervisor' ? 'Supervisor' : 'Treballador/a'}
+            {profile.role === 'admin'
+              ? 'Administradora'
+              : profile.role === 'supervisor'
+              ? 'Supervisor'
+              : 'Treballador/a'}
           </span>
         </div>
       </div>
 
-      {/* Missatges */}
+      {/* Missatges d'estat */}
       {success && (
         <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-4 py-3 rounded-lg">
           <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
@@ -198,7 +202,7 @@ export function PerfilClient({ profile }: { profile: Profile }) {
         })}
       </div>
 
-      {/* Tab: Perfil */}
+      {/* ── Tab: Perfil ───────────────────────────────────────── */}
       {activeTab === 'perfil' && (
         <Card>
           <CardHeader>
@@ -211,7 +215,9 @@ export function PerfilClient({ profile }: { profile: Profile }) {
             <div className="space-y-1.5">
               <Label>Nom complet</Label>
               <Input value={profile.full_name} disabled className="bg-muted" />
-              <p className="text-xs text-muted-foreground">El nom només el pot canviar l&apos;administradora</p>
+              <p className="text-xs text-muted-foreground">
+                El nom només el pot canviar l&apos;administradora
+              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -274,7 +280,7 @@ export function PerfilClient({ profile }: { profile: Profile }) {
         </Card>
       )}
 
-      {/* Tab: Seguretat */}
+      {/* ── Tab: Seguretat ────────────────────────────────────── */}
       {activeTab === 'seguretat' && (
         <Card>
           <CardHeader>
@@ -297,7 +303,7 @@ export function PerfilClient({ profile }: { profile: Profile }) {
                 <button
                   type="button"
                   onClick={() => setShowCurrent(!showCurrent)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -318,7 +324,7 @@ export function PerfilClient({ profile }: { profile: Profile }) {
                 <button
                   type="button"
                   onClick={() => setShowNew(!showNew)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -344,19 +350,25 @@ export function PerfilClient({ profile }: { profile: Profile }) {
                       key={level}
                       className={`h-1.5 flex-1 rounded-full transition-colors ${
                         newPassword.length >= level * 2
-                          ? level <= 1 ? 'bg-red-400'
-                          : level <= 2 ? 'bg-amber-400'
-                          : level <= 3 ? 'bg-yellow-400'
-                          : 'bg-green-500'
+                          ? level <= 1
+                            ? 'bg-red-400'
+                            : level <= 2
+                            ? 'bg-amber-400'
+                            : level <= 3
+                            ? 'bg-yellow-400'
+                            : 'bg-green-500'
                           : 'bg-muted'
                       }`}
                     />
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {newPassword.length < 6 ? 'Massa curta'
-                    : newPassword.length < 8 ? 'Feble'
-                    : newPassword.length < 12 ? 'Acceptable'
+                  {newPassword.length < 6
+                    ? 'Massa curta'
+                    : newPassword.length < 8
+                    ? 'Feble'
+                    : newPassword.length < 12
+                    ? 'Acceptable'
                     : 'Forta ✓'}
                 </p>
               </div>
@@ -380,7 +392,7 @@ export function PerfilClient({ profile }: { profile: Profile }) {
         </Card>
       )}
 
-      {/* Tab: Preferències */}
+      {/* ── Tab: Preferències ─────────────────────────────────── */}
       {activeTab === 'preferencies' && (
         <Card>
           <CardHeader>
@@ -414,9 +426,12 @@ export function PerfilClient({ profile }: { profile: Profile }) {
 
             <div className="space-y-1.5">
               <Label>Tema visual</Label>
-              <p className="text-xs text-muted-foreground">
-                Canvia entre mode clar i fosc des de la icona a la capçalera superior dreta.
-              </p>
+              <div className="flex items-center gap-2 bg-muted/50 px-4 py-3 rounded-lg">
+                <Palette className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  Canvia entre mode clar i fosc des de la icona a la capçalera superior dreta.
+                </p>
+              </div>
             </div>
 
             <Button variant="tramit" onClick={savePreferences} disabled={saving}>
@@ -426,63 +441,92 @@ export function PerfilClient({ profile }: { profile: Profile }) {
         </Card>
       )}
 
-      {/* Tab: Notificacions */}
+      {/* ── Tab: Notificacions ────────────────────────────────── */}
       {activeTab === 'notificacions' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              Notificacions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              {
-                id: 'app',
-                label: 'Notificacions a l\'app',
-                description: 'Rebre avisos dins de l\'aplicació (campana)',
-                value: notifApp,
-                onChange: setNotifApp,
-              },
-              {
-                id: 'telegram',
-                label: 'Notificacions per Telegram',
-                description: 'Rebre missatges al teu Telegram quan s\'aproven vacances o tens cites',
-                value: notifTelegram,
-                onChange: setNotifTelegram,
-                disabled: !profile.telegram_chat_id,
-                disabledMsg: 'Cal configurar el Telegram Chat ID a la pestanya Perfil',
-              },
-            ].map(item => (
-              <div key={item.id} className={`flex items-start justify-between p-4 rounded-lg border ${item.disabled ? 'opacity-50 bg-muted/30' : 'bg-muted/20'}`}>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{item.label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
-                  {item.disabled && item.disabledMsg && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{item.disabledMsg}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => !item.disabled && item.onChange(!item.value)}
-                  disabled={item.disabled}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ml-4 ${
-                    item.value && !item.disabled ? 'bg-tramit-blue' : 'bg-muted-foreground/30'
+        <div className="space-y-4">
+          {/* Notificacions push */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                Notificacions push
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PushNotifications />
+            </CardContent>
+          </Card>
+
+          {/* Notificacions app i Telegram */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                Altres notificacions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {[
+                {
+                  id: 'app',
+                  label: "Notificacions a l'app",
+                  description: "Rebre avisos dins de l'aplicació (campana superior)",
+                  value: notifApp,
+                  onChange: setNotifApp,
+                  disabled: false,
+                  disabledMsg: undefined,
+                },
+                {
+                  id: 'telegram',
+                  label: 'Notificacions per Telegram',
+                  description: 'Rebre missatges al teu Telegram quan s\'aproven vacances o tens cites',
+                  value: notifTelegram,
+                  onChange: setNotifTelegram,
+                  disabled: !profile.telegram_chat_id,
+                  disabledMsg: !profile.telegram_chat_id
+                    ? 'Cal configurar el Telegram Chat ID a la pestanya Perfil'
+                    : undefined,
+                },
+              ].map(item => (
+                <div
+                  key={item.id}
+                  className={`flex items-start justify-between p-4 rounded-lg border ${
+                    item.disabled ? 'opacity-50 bg-muted/30' : 'bg-muted/20'
                   }`}
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                      item.value ? 'translate-x-6' : 'translate-x-1'
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{item.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                    {item.disabled && item.disabledMsg && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                        {item.disabledMsg}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => !item.disabled && item.onChange(!item.value)}
+                    disabled={item.disabled}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ml-4 ${
+                      item.value && !item.disabled
+                        ? 'bg-tramit-blue'
+                        : 'bg-muted-foreground/30'
                     }`}
-                  />
-                </button>
-              </div>
-            ))}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        item.value && !item.disabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
 
-            <Button variant="tramit" onClick={saveProfile} disabled={saving}>
-              {saving ? 'Desant...' : 'Desar preferències'}
-            </Button>
-          </CardContent>
-        </Card>
+              <Button variant="tramit" onClick={saveProfile} disabled={saving} className="w-full mt-2">
+                {saving ? 'Desant...' : 'Desar preferències de notificació'}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   )
