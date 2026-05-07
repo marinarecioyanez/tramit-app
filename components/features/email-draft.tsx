@@ -26,25 +26,30 @@ export function EmailDraft({ clientName }: { clientName?: string }) {
   ]
 
   async function generateDraft(customInstruction?: string) {
-    const finalInstruction = customInstruction || instruction
-    if (!finalInstruction.trim()) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/email-draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ instruction: finalInstruction, clientName, context, language }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setDraft(data.draft)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error generant l'esborrany")
-    } finally {
-      setLoading(false)
-    }
-  }
+    const finalInstruction = customInstruction || instruction
+    if (!finalInstruction.trim()) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/email-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instruction: finalInstruction,
+          clientName,
+          context,
+          language,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setDraft(data.draft)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error generant l'esborrany")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function copyToClipboard() {
     await navigator.clipboard.writeText(draft)
