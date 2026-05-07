@@ -43,12 +43,19 @@ export default async function AgendaPage() {
     .select('date, name')
     .eq('year', now.getFullYear())
 
+  const { data: fiscalDeadlines } = await supabase
+    .from('fiscal_deadlines')
+    .select('*')
+    .gte('date', now.toISOString().split('T')[0])
+    .lte('date', new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().split('T')[0])
+    .order('date', { ascending: true })
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Agenda</h1>
-          <p className="text-muted-foreground mt-1">Calendari de vacances i absències de l&apos;equip</p>
+          <p className="text-muted-foreground mt-1">Calendari de l&apos;equip</p>
         </div>
         <NovaCitaButton
           profiles={profiles || []}
@@ -63,6 +70,7 @@ export default async function AgendaPage() {
         closures={closures || []}
         currentUserId={user!.id}
         currentUserRole={currentProfile?.role || 'admin'}
+        fiscalDeadlines={fiscalDeadlines || []}
       />
     </div>
   )
