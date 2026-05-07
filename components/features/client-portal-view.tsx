@@ -1,3 +1,5 @@
+'use client'
+
 import { TramitLogo } from '@/components/layout/logo'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar, Phone, Mail, MapPin, Clock, CheckCircle } from 'lucide-react'
