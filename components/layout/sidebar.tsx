@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Calendar, Umbrella, Users, FileText,
   BarChart3, Settings, ClipboardList, Home, LogOut,
-  UserCircle, Shield, BookOpen, MessageSquare, CheckSquare, Inbox
+  UserCircle, Shield, BookOpen, MessageSquare, CheckSquare, Inbox,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { TramitLogo } from './logo'
@@ -20,17 +20,17 @@ interface NavItem {
 const adminNavItems: NavItem[] = [
   { label: 'Tauler', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Missatges', href: '/dashboard/missatges', icon: MessageSquare },
+  { label: 'Contactes web', href: '/dashboard/contactes', icon: Inbox },
   { label: 'Agenda', href: '/dashboard/agenda', icon: Calendar },
   { label: 'Vacances', href: '/dashboard/vacances', icon: Umbrella },
   { label: 'Absències', href: '/dashboard/absencies', icon: ClipboardList },
   { label: 'Clients', href: '/dashboard/clients', icon: Users },
+  { label: 'Tasques', href: '/dashboard/tasques', icon: CheckSquare },
   { label: 'Informes', href: '/dashboard/informes', icon: BarChart3 },
   { label: 'Usuaris', href: '/dashboard/usuaris', icon: UserCircle },
   { label: 'Assessor fiscal', href: '/dashboard/assessor', icon: BookOpen },
   { label: 'Configuració', href: '/dashboard/configuracio', icon: Settings },
   { label: 'Auditoria', href: '/dashboard/auditoria', icon: Shield },
-  { label: 'Tasques', href: '/dashboard/tasques', icon: CheckSquare },
-  { label: 'Contactes web', href: '/dashboard/contactes', icon: Inbox },
 ]
 
 const workerNavItems: NavItem[] = [
@@ -38,9 +38,9 @@ const workerNavItems: NavItem[] = [
   { label: 'Missatges', href: '/worker/missatges', icon: MessageSquare },
   { label: 'Agenda', href: '/worker/agenda', icon: Calendar },
   { label: 'Vacances', href: '/worker/vacances', icon: Umbrella },
+  { label: 'Tasques', href: '/worker/tasques', icon: CheckSquare },
   { label: 'Assessor fiscal', href: '/worker/assessor', icon: BookOpen },
   { label: 'El meu perfil', href: '/worker/perfil', icon: UserCircle },
-  { label: 'Tasques', href: '/worker/tasques', icon: CheckSquare },
 ]
 
 interface SidebarProps {
