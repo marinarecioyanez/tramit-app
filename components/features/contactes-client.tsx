@@ -119,7 +119,7 @@ export function ContactesClient({
             )}
           </p>
         </div>
-        
+        <a
           href="/contacte"
           target="_blank"
           rel="noreferrer"
