@@ -4,9 +4,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Calendar, Umbrella, Users,
-  BarChart3, Settings, ClipboardList, Home, LogOut,
-  UserCircle, Shield, BookOpen, MessageSquare,
-  CheckSquare, Inbox, FileText, CalendarDays,
+  BarChart3, Settings, Home, LogOut,
+  UserCircle, BookOpen, MessageSquare,
+  CheckSquare, Inbox, FileText,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { TramitLogo } from './logo'
@@ -16,7 +16,6 @@ interface NavItem {
   label: string
   href: string
   icon: React.ComponentType<{ className?: string }>
-  separator?: boolean
 }
 
 const adminNavItems: NavItem[] = [
@@ -24,26 +23,21 @@ const adminNavItems: NavItem[] = [
   { label: 'Missatges', href: '/dashboard/missatges', icon: MessageSquare },
   { label: 'Contactes web', href: '/dashboard/contactes', icon: Inbox },
   { label: 'Agenda', href: '/dashboard/agenda', icon: Calendar },
-  { label: 'Vacances', href: '/dashboard/vacances', icon: Umbrella },
-  { label: 'Absències', href: '/dashboard/absencies', icon: ClipboardList },
+  { label: 'Equip', href: '/dashboard/equip', icon: Umbrella },
   { label: 'Clients', href: '/dashboard/clients', icon: Users },
   { label: 'Tasques', href: '/dashboard/tasques', icon: CheckSquare },
   { label: 'Documents', href: '/dashboard/documents', icon: FileText },
-  { label: 'Calendari fiscal', href: '/dashboard/calendari-fiscal', icon: CalendarDays },
   { label: 'Informes', href: '/dashboard/informes', icon: BarChart3 },
   { label: 'Assessor fiscal', href: '/dashboard/assessor', icon: BookOpen },
-  { label: 'Usuaris', href: '/dashboard/usuaris', icon: UserCircle },
-  { label: 'Configuració', href: '/dashboard/configuracio', icon: Settings },
-  { label: 'Auditoria', href: '/dashboard/auditoria', icon: Shield },
+  { label: 'Administració', href: '/dashboard/administracio', icon: Settings },
 ]
 
 const workerNavItems: NavItem[] = [
   { label: 'Inici', href: '/worker', icon: Home },
   { label: 'Missatges', href: '/worker/missatges', icon: MessageSquare },
   { label: 'Agenda', href: '/worker/agenda', icon: Calendar },
-  { label: 'Vacances', href: '/worker/vacances', icon: Umbrella },
+  { label: 'Equip', href: '/worker/equip', icon: Umbrella },
   { label: 'Tasques', href: '/worker/tasques', icon: CheckSquare },
-  { label: 'Calendari fiscal', href: '/worker/calendari-fiscal', icon: CalendarDays },
   { label: 'Assessor fiscal', href: '/worker/assessor', icon: BookOpen },
   { label: 'El meu perfil', href: '/worker/perfil', icon: UserCircle },
 ]
