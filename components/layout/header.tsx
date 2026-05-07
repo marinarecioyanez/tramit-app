@@ -2,17 +2,16 @@
 
 import { Sun, Moon } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { formatDateCA } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { NotificationsBell } from './notifications-bell'
+import { GlobalSearch } from './global-search'
 
 export function Header() {
   const { theme, setTheme } = useTheme()
-  const today = formatDateCA(new Date())
 
   return (
-    <div className="flex items-center justify-between w-full">
-      <p className="text-sm text-muted-foreground capitalize hidden sm:block">{today}</p>
+    <div className="flex items-center justify-between w-full gap-4">
+      <GlobalSearch />
 
       <div className="flex items-center gap-1 ml-auto">
         <NotificationsBell />
