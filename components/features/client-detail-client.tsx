@@ -132,7 +132,7 @@ const CONSENT_LABELS: Record<string, string> = {
   marketing: 'Marketing i newsletters',
 }
 
-type Tab = 'activitat' | 'cites' | 'tasques' | 'pressupostos' | 'rgpd'
+type Tab = 'activitat' | 'cites' | 'tasques' | 'pressupostos' | 'ia' | 'rgpd'
 
 export function ClientDetailClient({
   client, activity, appointments, tasks, quotes, consents, profiles
