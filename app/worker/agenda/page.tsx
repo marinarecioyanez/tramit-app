@@ -37,6 +37,13 @@ export default async function WorkerAgendaPage() {
     .select('date, name')
     .eq('year', now.getFullYear())
 
+  const { data: fiscalDeadlines } = await supabase
+    .from('fiscal_deadlines')
+    .select('*')
+    .gte('date', now.toISOString().split('T')[0])
+    .lte('date', new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().split('T')[0])
+    .order('date', { ascending: true })
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -57,6 +64,7 @@ export default async function WorkerAgendaPage() {
         closures={closures || []}
         currentUserId={user!.id}
         currentUserRole="worker"
+        fiscalDeadlines={fiscalDeadlines || []}
       />
     </div>
   )
