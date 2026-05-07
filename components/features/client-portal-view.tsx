@@ -180,14 +180,14 @@ export function ClientPortalView({
               Necessites ajuda o vols concertar una cita?
             </p>
             <div className="flex gap-3 justify-center flex-wrap">
-              
+              <a
                 href="tel:+34972000000"
                 className="flex items-center gap-2 bg-tramit-blue text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-tramit-blue-dark transition-colors"
               >
                 <Phone className="h-4 w-4" />
                 Trucar
               </a>
-              
+              <a
                 href="mailto:info@tramiteconomistes.com"
                 className="flex items-center gap-2 border border-tramit-blue text-tramit-blue px-4 py-2 rounded-lg text-sm font-medium hover:bg-tramit-blue-light transition-colors"
               >
