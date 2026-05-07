@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Calendar, Umbrella, Users, FileText,
   BarChart3, Settings, ClipboardList, Home, LogOut,
-  UserCircle, Shield, BookOpen,
+  UserCircle, Shield, BookOpen, MessageSquare,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { TramitLogo } from './logo'
@@ -19,6 +19,7 @@ interface NavItem {
 
 const adminNavItems: NavItem[] = [
   { label: 'Tauler', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Missatges', href: '/dashboard/missatges', icon: MessageSquare },
   { label: 'Agenda', href: '/dashboard/agenda', icon: Calendar },
   { label: 'Vacances', href: '/dashboard/vacances', icon: Umbrella },
   { label: 'Absències', href: '/dashboard/absencies', icon: ClipboardList },
@@ -32,6 +33,7 @@ const adminNavItems: NavItem[] = [
 
 const workerNavItems: NavItem[] = [
   { label: 'Inici', href: '/worker', icon: Home },
+  { label: 'Missatges', href: '/worker/missatges', icon: MessageSquare },
   { label: 'Agenda', href: '/worker/agenda', icon: Calendar },
   { label: 'Vacances', href: '/worker/vacances', icon: Umbrella },
   { label: 'Assessor fiscal', href: '/worker/assessor', icon: BookOpen },
