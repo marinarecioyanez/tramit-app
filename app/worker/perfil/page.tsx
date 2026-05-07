@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
-import { PerfilWorkerClient } from '@/components/features/perfil-worker-client'
+import { PerfilClient } from '@/components/features/perfil-client'
 
 export const metadata = { title: 'El meu perfil — Tràmit Economistes' }
 
@@ -15,5 +15,5 @@ export default async function PerfilPage() {
     .eq('id', user!.id)
     .single()
 
-  return <PerfilWorkerClient profile={profile} />
+  return <PerfilClient profile={profile} />
 }
