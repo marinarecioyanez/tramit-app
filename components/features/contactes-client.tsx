@@ -109,7 +109,6 @@ export function ContactesClient({
 
   return (
     <div className="space-y-6 max-w-4xl">
-      {/* Capçalera */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Formularis de contacte</h1>
@@ -123,13 +122,13 @@ export function ContactesClient({
         
           href="/contacte"
           target="_blank"
-          className="text-xs text-tramit-blue hover:underline flex items-center gap-1"
+          rel="noreferrer"
+          className="text-xs text-tramit-blue hover:underline"
         >
           Veure formulari públic →
         </a>
       </div>
 
-      {/* Filtres */}
       <div className="flex gap-2 flex-wrap">
         {(['all', 'new', 'assigned', 'closed'] as const).map(f => (
           <button
@@ -147,7 +146,6 @@ export function ContactesClient({
         ))}
       </div>
 
-      {/* Llista */}
       {filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
@@ -213,16 +211,13 @@ export function ContactesClient({
                     </button>
                   </div>
 
-                  {/* Detall expandit */}
                   {isExpanded && (
                     <div className="mt-4 pt-4 border-t space-y-4">
-                      {/* Missatge */}
                       <div className="bg-muted/50 rounded-lg px-4 py-3">
                         <p className="text-sm leading-relaxed">{form.message}</p>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {/* Assignar */}
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium text-muted-foreground">
                             Assignar a
@@ -240,7 +235,6 @@ export function ContactesClient({
                           </select>
                         </div>
 
-                        {/* Estat */}
                         <div className="space-y-1.5">
                           <label className="text-xs font-medium text-muted-foreground">
                             Canviar estat
@@ -264,7 +258,6 @@ export function ContactesClient({
                         </div>
                       </div>
 
-                      {/* Accions */}
                       <div className="flex gap-2 flex-wrap">
                         <a href={`mailto:${form.email}?subject=Re: ${form.subject}`}>
                           <Button
