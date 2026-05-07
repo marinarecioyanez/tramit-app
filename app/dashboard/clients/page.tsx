@@ -10,12 +10,17 @@ export default async function ClientsPage() {
 
   const { data: clients } = await supabase
     .from('clients')
-    .select('*, profiles!clients_responsible_id_fkey(full_name)')
+    .select(`
+      *,
+      profiles!clients_responsible_id_fkey(full_name, color),
+      client_activity(count),
+      quotes(count)
+    `)
     .order('created_at', { ascending: false })
 
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, full_name')
+    .select('id, full_name, color')
     .eq('active', true)
     .order('full_name')
 
