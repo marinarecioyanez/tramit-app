@@ -217,12 +217,13 @@ export function ClientDetailClient({
   }
 
   const TABS: { id: Tab; label: string; count?: number }[] = [
-    { id: 'activitat', label: 'Activitat', count: activity.length },
-    { id: 'cites', label: 'Cites', count: appointments.length },
-    { id: 'tasques', label: 'Tasques', count: tasks.filter(t => t.status !== 'done').length },
-    { id: 'pressupostos', label: 'Pressupostos', count: quotes.length },
-    { id: 'rgpd', label: 'RGPD' },
-  ]
+  { id: 'activitat', label: 'Activitat', count: activity.length },
+  { id: 'cites', label: 'Cites', count: appointments.length },
+  { id: 'tasques', label: 'Tasques', count: tasks.filter(t => t.status !== 'done').length },
+  { id: 'pressupostos', label: 'Pressupostos', count: quotes.length },
+  { id: 'ia', label: '✨ IA' },
+  { id: 'rgpd', label: 'RGPD' },
+]
 
   return (
     <div className="space-y-6 max-w-5xl">
