@@ -25,6 +25,13 @@ interface Profile {
 interface Holiday { date: string; name: string }
 interface Closure { date: string; name: string }
 
+interface FiscalDeadline {
+  id: string
+  date: string
+  name: string
+  model: string | null
+}
+
 const DAYS_CA = ['Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg']
 const DAYS_FULL_CA = ['Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge']
 const MONTHS_CA = ['Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny', 'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre']
@@ -56,6 +63,7 @@ export function AgendaClient({
   closures,
   currentUserId,
   currentUserRole,
+  fiscalDeadlines = [],
 }: {
   absences: Absence[]
   profiles: Profile[]
@@ -63,26 +71,30 @@ export function AgendaClient({
   closures: Closure[]
   currentUserId: string
   currentUserRole: string
+  fiscalDeadlines?: FiscalDeadline[]
 }) {
   const today = new Date()
   today.setHours(12, 0, 0, 0)
 
   const [viewMode, setViewMode] = useState<ViewMode>('mes')
-  const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1, 12))
+  const [currentDate, setCurrentDate] = useState(
+    new Date(today.getFullYear(), today.getMonth(), 1, 12)
+  )
   const [filterUser, setFilterUser] = useState<string>('all')
+  const [showFiscal, setShowFiscal] = useState(false)
   const [newCitaDate, setNewCitaDate] = useState<string | null>(null)
   const [newCitaTime, setNewCitaTime] = useState<string | null>(null)
   const [showNovaCita, setShowNovaCita] = useState(false)
 
   const holidayDates = new Map(holidays.map(h => [h.date, h.name]))
   const closureDates = new Map(closures.map(c => [c.date, c.name]))
+  const fiscalDates = new Map(fiscalDeadlines.map(d => [d.date, d]))
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
+  const todayStr = toLocalDateStr(today)
 
-  // ─── Helpers ───────────────────────────────────────────────
-
-  function isSpecialDay(date: Date): { holiday: boolean; closure: boolean; name: string | null } {
+  function isSpecialDay(date: Date) {
     const dateStr = toLocalDateStr(date)
     const holidayName = holidayDates.get(dateStr)
     const closureName = closureDates.get(dateStr)
@@ -138,10 +150,11 @@ export function AgendaClient({
     return `${currentDate.getDate()} ${MONTHS_CA[currentDate.getMonth()]} ${currentDate.getFullYear()}`
   }
 
-  const workers = profiles.filter(p => p.role === 'worker' || p.role === 'admin' || p.role === 'supervisor')
-  const todayStr = toLocalDateStr(today)
+  const workers = profiles.filter(p =>
+    p.role === 'worker' || p.role === 'admin' || p.role === 'supervisor'
+  )
 
-  // ─── Vista MES ─────────────────────────────────────────────
+  // ── Vista MES ─────────────────────────────────────────────
 
   function renderMes() {
     const firstDay = new Date(year, month, 1, 12)
@@ -165,7 +178,6 @@ export function AgendaClient({
     return (
       <Card>
         <CardContent className="p-0 overflow-hidden">
-          {/* Capçalera dies */}
           <div className="grid grid-cols-7 border-b border-border">
             {DAYS_CA.map((day, i) => (
               <div
@@ -179,7 +191,6 @@ export function AgendaClient({
             ))}
           </div>
 
-          {/* Dies */}
           <div className="grid grid-cols-7">
             {days.map((date, idx) => {
               if (!date) {
@@ -196,6 +207,7 @@ export function AgendaClient({
               const isWeekend = date.getDay() === 0 || date.getDay() === 6
               const special = isSpecialDay(date)
               const dayAbsences = getAbsencesForDay(date)
+              const fiscal = fiscalDates.get(dateStr)
 
               return (
                 <div
@@ -206,7 +218,7 @@ export function AgendaClient({
                     ${special.holiday || special.closure ? 'bg-amber-50 dark:bg-amber-900/10' : ''}
                   `}
                 >
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-0.5">
                     <span
                       className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
                         isToday
@@ -218,11 +230,19 @@ export function AgendaClient({
                     >
                       {date.getDate()}
                     </span>
+                    {fiscal && showFiscal && (
+                      <span
+                        title={`${fiscal.name}${fiscal.model ? ` · M.${fiscal.model}` : ''}`}
+                        className="text-[8px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1 rounded"
+                      >
+                        {fiscal.model ? `M${fiscal.model}` : '📋'}
+                      </span>
+                    )}
                   </div>
 
                   {special.name && (
                     <div
-                      className="text-[9px] text-amber-700 dark:text-amber-400 leading-tight mb-1 truncate"
+                      className="text-[9px] text-amber-700 dark:text-amber-400 leading-tight mb-0.5 truncate"
                       title={special.name}
                     >
                       {special.name}
@@ -238,16 +258,26 @@ export function AgendaClient({
                         <div
                           key={abs.id}
                           className="flex items-center gap-1 rounded px-1 py-0.5"
-                          style={{ backgroundColor: color + '25', borderLeft: `2px solid ${color}` }}
+                          style={{
+                            backgroundColor: color + '25',
+                            borderLeft: `2px solid ${color}`,
+                          }}
                           title={`${name} — ${abs.type === 'vacation' ? 'Vacances' : 'Absència'}`}
                         >
                           <div
                             className="h-3.5 w-3.5 rounded-full flex items-center justify-center text-white shrink-0"
-                            style={{ backgroundColor: color, fontSize: '7px', fontWeight: 700 }}
+                            style={{
+                              backgroundColor: color,
+                              fontSize: '7px',
+                              fontWeight: 700,
+                            }}
                           >
                             {getInitials(name)}
                           </div>
-                          <span className="text-[9px] truncate font-medium" style={{ color }}>
+                          <span
+                            className="text-[9px] truncate font-medium"
+                            style={{ color }}
+                          >
                             {name.split(' ')[0]}
                           </span>
                         </div>
@@ -268,7 +298,7 @@ export function AgendaClient({
     )
   }
 
-  // ─── Vista SETMANA ──────────────────────────────────────────
+  // ── Vista SETMANA ─────────────────────────────────────────
 
   function renderSetmana() {
     const monday = getMondayOfWeek(currentDate)
@@ -283,7 +313,6 @@ export function AgendaClient({
       <Card>
         <CardContent className="p-0 overflow-auto">
           <div className="min-w-[600px]">
-            {/* Capçalera */}
             <div className="grid grid-cols-8 border-b border-border">
               <div className="py-2 px-2 text-xs text-muted-foreground" />
               {weekDays.map(d => {
@@ -291,26 +320,35 @@ export function AgendaClient({
                 const isToday = dateStr === todayStr
                 const isWeekend = d.getDay() === 0 || d.getDay() === 6
                 const special = isSpecialDay(d)
+                const fiscal = fiscalDates.get(dateStr)
                 return (
                   <div
                     key={dateStr}
-                    className={`py-2 text-center border-l border-border ${isWeekend ? 'bg-muted/30' : ''} ${special.holiday || special.closure ? 'bg-amber-50 dark:bg-amber-900/10' : ''}`}
+                    className={`py-2 text-center border-l border-border ${
+                      isWeekend ? 'bg-muted/30' : ''
+                    } ${special.holiday || special.closure ? 'bg-amber-50 dark:bg-amber-900/10' : ''}`}
                   >
                     <p className={`text-xs font-medium ${isWeekend ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
                       {DAYS_FULL_CA[d.getDay() === 0 ? 6 : d.getDay() - 1]}
                     </p>
-                    <p className={`text-sm font-bold mt-0.5 mx-auto w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-tramit-blue text-white' : ''}`}>
+                    <p className={`text-sm font-bold mt-0.5 mx-auto w-7 h-7 flex items-center justify-center rounded-full ${
+                      isToday ? 'bg-tramit-blue text-white' : ''
+                    }`}>
                       {d.getDate()}
                     </p>
                     {special.name && (
                       <p className="text-[9px] text-amber-600 truncate px-1">{special.name}</p>
+                    )}
+                    {fiscal && showFiscal && (
+                      <p className="text-[9px] text-amber-600 font-bold truncate px-1">
+                        {fiscal.model ? `M.${fiscal.model}` : '📋'}
+                      </p>
                     )}
                   </div>
                 )
               })}
             </div>
 
-            {/* Absències dia complet */}
             <div className="grid grid-cols-8 border-b border-border bg-muted/10">
               <div className="px-2 py-2 text-xs text-muted-foreground self-center">Tot el dia</div>
               {weekDays.map(d => {
@@ -339,7 +377,6 @@ export function AgendaClient({
               })}
             </div>
 
-            {/* Hores */}
             {HOURS.map(hour => (
               <div key={hour} className="grid grid-cols-8 border-b border-border">
                 <div className="px-2 py-2 text-xs text-muted-foreground text-right">{hour}:00</div>
@@ -351,7 +388,9 @@ export function AgendaClient({
                       key={dateStr + hour}
                       onClick={() => !isWeekend && openNovaCita(dateStr, `${String(hour).padStart(2, '0')}:00`)}
                       className={`border-l border-border min-h-[40px] transition-colors ${
-                        isWeekend ? 'bg-muted/20 cursor-default' : 'cursor-pointer hover:bg-tramit-blue-light/30 dark:hover:bg-blue-900/10'
+                        isWeekend
+                          ? 'bg-muted/20 cursor-default'
+                          : 'cursor-pointer hover:bg-tramit-blue-light/30 dark:hover:bg-blue-900/10'
                       }`}
                     />
                   )
@@ -364,7 +403,7 @@ export function AgendaClient({
     )
   }
 
-  // ─── Vista DIA ──────────────────────────────────────────────
+  // ── Vista DIA ─────────────────────────────────────────────
 
   function renderDia() {
     const dateStr = toLocalDateStr(currentDate)
@@ -372,10 +411,10 @@ export function AgendaClient({
     const special = isSpecialDay(currentDate)
     const dayAbsences = getAbsencesForDay(currentDate)
     const isToday = dateStr === todayStr
+    const fiscal = fiscalDates.get(dateStr)
 
     return (
       <div className="space-y-4">
-        {/* Info del dia */}
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-4 flex-wrap">
@@ -393,6 +432,11 @@ export function AgendaClient({
                 </p>
                 {special.name && (
                   <p className="text-sm text-amber-600 dark:text-amber-400">🎌 {special.name}</p>
+                )}
+                {fiscal && showFiscal && (
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    📋 {fiscal.name}{fiscal.model ? ` · Model ${fiscal.model}` : ''}
+                  </p>
                 )}
                 {isWeekend && <p className="text-sm text-muted-foreground">Cap de setmana</p>}
               </div>
@@ -424,14 +468,15 @@ export function AgendaClient({
           </CardContent>
         </Card>
 
-        {/* Horari per hores */}
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
               {HOURS.map(hour => (
                 <div
                   key={hour}
-                  onClick={() => !isWeekend && !special.holiday && !special.closure && openNovaCita(dateStr, `${String(hour).padStart(2, '0')}:00`)}
+                  onClick={() => !isWeekend && !special.holiday && !special.closure &&
+                    openNovaCita(dateStr, `${String(hour).padStart(2, '0')}:00`)
+                  }
                   className={`flex items-stretch min-h-[48px] transition-colors ${
                     isWeekend || special.holiday || special.closure
                       ? 'bg-muted/20 cursor-default'
@@ -441,11 +486,7 @@ export function AgendaClient({
                   <div className="w-16 px-3 py-3 text-xs text-muted-foreground text-right shrink-0 border-r border-border">
                     {hour}:00
                   </div>
-                  <div className="flex-1 px-3 py-2 text-xs text-muted-foreground/40">
-                    {!isWeekend && !special.holiday && !special.closure && (
-                      <span className="opacity-0 hover:opacity-100">+ Nova cita</span>
-                    )}
-                  </div>
+                  <div className="flex-1 px-3 py-2" />
                 </div>
               ))}
             </div>
@@ -455,7 +496,7 @@ export function AgendaClient({
     )
   }
 
-  // ─── Resum del mes ─────────────────────────────────────────
+  // ── Resum del mes ─────────────────────────────────────────
 
   function renderResumMes() {
     const monthAbsences = absences.filter(abs => {
@@ -511,7 +552,7 @@ export function AgendaClient({
     )
   }
 
-  // ─── RENDER PRINCIPAL ───────────────────────────────────────
+  // ── RENDER PRINCIPAL ──────────────────────────────────────
 
   return (
     <div className="space-y-4">
@@ -559,7 +600,7 @@ export function AgendaClient({
             ))}
           </div>
 
-          {/* Filtre per treballador */}
+          {/* Filtre treballador */}
           <select
             value={filterUser}
             onChange={e => setFilterUser(e.target.value)}
@@ -570,6 +611,20 @@ export function AgendaClient({
               <option key={p.id} value={p.id}>{p.full_name.split(' ')[0]}</option>
             ))}
           </select>
+
+          {/* Botó terminis fiscals */}
+          {fiscalDeadlines.length > 0 && (
+            <button
+              onClick={() => setShowFiscal(!showFiscal)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                showFiscal
+                  ? 'bg-amber-500 text-white border-amber-500'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              📋 {showFiscal ? 'Amagar terminis' : 'Terminis fiscals'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -579,7 +634,11 @@ export function AgendaClient({
           <div key={p.id} className="flex items-center gap-1.5">
             <div
               className="h-5 w-5 rounded-full flex items-center justify-center text-white"
-              style={{ backgroundColor: p.color || '#2272A3', fontSize: '9px', fontWeight: 700 }}
+              style={{
+                backgroundColor: p.color || '#2272A3',
+                fontSize: '9px',
+                fontWeight: 700,
+              }}
             >
               {getInitials(p.full_name)}
             </div>
@@ -590,10 +649,50 @@ export function AgendaClient({
           <div className="h-5 w-5 rounded bg-amber-100 dark:bg-amber-900/30 border border-amber-300" />
           <span className="text-xs text-muted-foreground">Festiu / Tancament</span>
         </div>
-        <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground italic">
-          Clica al calendari per crear una cita
+        <div className="ml-auto text-xs text-muted-foreground italic hidden sm:block">
+          Clica per crear una cita
         </div>
       </div>
+
+      {/* Panell terminis fiscals */}
+      {showFiscal && fiscalDeadlines.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-3">
+            Propers terminis fiscals
+          </p>
+          <div className="space-y-2">
+            {fiscalDeadlines.map(d => {
+              const daysLeft = Math.ceil(
+                (new Date(d.date + 'T00:00:00').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+              )
+              const isUrgent = daysLeft <= 7
+              return (
+                <div key={d.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">{d.name}</p>
+                    {d.model && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                        M.{d.model}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-medium">
+                      {new Date(d.date + 'T00:00:00').toLocaleDateString('ca-ES', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}
+                    </p>
+                    <p className={`text-[10px] ${isUrgent ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+                      {daysLeft === 0 ? 'Avui!' : daysLeft === 1 ? 'Demà' : `${daysLeft} dies`}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Contingut */}
       {viewMode === 'mes' && renderMes()}
