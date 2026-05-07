@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Sparkles, Mail, Copy, CheckCircle, Loader2, RefreshCw } from 'lucide-react'
+import { Sparkles, Copy, CheckCircle, Loader2, RefreshCw, Mail } from 'lucide-react'
 
 export function EmailDraft({ clientName }: { clientName?: string }) {
   const [instruction, setInstruction] = useState('')
@@ -28,10 +28,8 @@ export function EmailDraft({ clientName }: { clientName?: string }) {
   async function generateDraft(customInstruction?: string) {
     const finalInstruction = customInstruction || instruction
     if (!finalInstruction.trim()) return
-
     setLoading(true)
     setError(null)
-
     try {
       const res = await fetch('/api/email-draft', {
         method: 'POST',
@@ -43,13 +41,11 @@ export function EmailDraft({ clientName }: { clientName?: string }) {
           language,
         }),
       })
-
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-
       setDraft(data.draft)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error generant l\'esborrany')
+      setError(err instanceof Error ? err.message : "Error generant l'esborrany")
     } finally {
       setLoading(false)
     }
@@ -118,7 +114,10 @@ export function EmailDraft({ clientName }: { clientName?: string }) {
               disabled={loading || !instruction.trim()}
               className="shrink-0 flex items-center gap-1.5"
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {loading
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Sparkles className="h-4 w-4" />
+              }
               Generar
             </Button>
           </div>
@@ -162,24 +161,21 @@ export function EmailDraft({ clientName }: { clientName?: string }) {
                   onClick={copyToClipboard}
                   className="flex items-center gap-1.5"
                 >
-                  {copied ? (
-                    <><CheckCircle className="h-3.5 w-3.5" />Copiat!</>
-                  ) : (
-                    <><Copy className="h-3.5 w-3.5" />Copiar</>
-                  )}
+                  {copied
+                    ? <><CheckCircle className="h-3.5 w-3.5" />Copiat!</>
+                    : <><Copy className="h-3.5 w-3.5" />Copiar</>
+                  }
                 </Button>
-                {draft.includes('@') || draft.toLowerCase().includes('benvolgut') ? (
-                  
-                    href={`mailto:?body=${encodeURIComponent(draft)}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border hover:bg-muted transition-colors"
-                  >
-                    <Mail className="h-3.5 w-3.5" />
-                    Obrir mail
-                  </a>
-                ) : null}
+                
+                  href={`mailto:?body=${encodeURIComponent(draft)}`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border hover:bg-muted transition-colors"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Obrir mail
+                </a>
               </div>
             </div>
-            <div className="bg-muted/50 rounded-xl p-4 text-sm whitespace-pre-wrap font-mono text-xs leading-relaxed max-h-64 overflow-y-auto border border-border">
+            <div className="bg-muted/50 rounded-xl p-4 text-xs whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto border border-border">
               {draft}
             </div>
           </div>
