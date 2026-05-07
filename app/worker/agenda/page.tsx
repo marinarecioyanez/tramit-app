@@ -55,6 +55,8 @@ export default async function WorkerAgendaPage() {
         profiles={profiles || []}
         holidays={holidays || []}
         closures={closures || []}
+        currentUserId={user!.id}
+        currentUserRole="worker"
       />
     </div>
   )
