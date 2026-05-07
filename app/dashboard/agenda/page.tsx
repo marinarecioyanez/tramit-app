@@ -10,6 +10,7 @@ export default async function AgendaPage() {
   const supabase = createClient()
   const now = new Date()
   const { data: { user } } = await supabase.auth.getUser()
+
   const { data: currentProfile } = await supabase
     .from('profiles')
     .select('role')
@@ -52,7 +53,7 @@ export default async function AgendaPage() {
         <NovaCitaButton
           profiles={profiles || []}
           currentUserId={user!.id}
-          currentUserRole={currentProfile?.role || 'worker'}
+          currentUserRole={currentProfile?.role || 'admin'}
         />
       </div>
       <AgendaClient
@@ -60,6 +61,8 @@ export default async function AgendaPage() {
         profiles={profiles || []}
         holidays={holidays || []}
         closures={closures || []}
+        currentUserId={user!.id}
+        currentUserRole={currentProfile?.role || 'admin'}
       />
     </div>
   )
