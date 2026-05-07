@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { EmailDraft } from './email-draft'
+import { ClientOpportunities } from './client-opportunities'
+import { DocumentOCR } from './document-ocr'
 import {
   ArrowLeft, User, Building2, Phone, Mail, FileText,
   MessageSquare, Calendar, CheckSquare, TrendingUp,
