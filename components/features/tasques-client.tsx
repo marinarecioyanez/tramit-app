@@ -15,7 +15,7 @@ interface Task {
   id: string
   title: string
   description: string | null
-  status: 'pending' | 'in_progress' | 'done'
+  status: 'pending' | 'in_progress' | 'done' | 'archived'
   priority: 'normal' | 'high' | 'urgent'
   assigned_to: string | null
   created_by: string
@@ -79,6 +79,7 @@ export function TasquesClient({
 }) {
   const [showForm, setShowForm] = useState(false)
   const [filter, setFilter] = useState<'all' | 'mine' | 'pending' | 'done'>('all')
+  const [showArchived, setShowArchived] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState<string | null>(null)
 
@@ -93,8 +94,6 @@ export function TasquesClient({
 
   const supabase = createClient()
 
-  const [showArchived, setShowArchived] = useState(false)
-
   const filtered = tasks.filter(t => {
     if (t.status === 'archived' && !showArchived) return false
     if (filter === 'mine') return t.assigned_to === currentUserId || t.created_by === currentUserId
@@ -103,7 +102,11 @@ export function TasquesClient({
     return true
   })
 
-  const pendingCount = tasks.filter(t => t.status !== 'done' && (t.assigned_to === currentUserId)).length
+  const pendingCount = tasks.filter(t =>
+    t.status !== 'done' && t.status !== 'archived' && t.assigned_to === currentUserId
+  ).length
+
+  const archivedCount = tasks.filter(t => t.status === 'archived').length
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -120,18 +123,24 @@ export function TasquesClient({
         status: 'pending',
       })
 
-      // Notificar si s'assigna a un altre
       if (form.assigned_to && form.assigned_to !== currentUserId) {
         await supabase.from('notifications').insert({
           user_id: form.assigned_to,
           title: 'Nova tasca assignada',
-          body: `T\'han assignat la tasca: "${form.title}"`,
+          body: `T'han assignat la tasca: "${form.title}"`,
           type: 'task',
           read: false,
         })
       }
 
-      setForm({ title: '', description: '', priority: 'normal', assigned_to: currentUserId, client_id: '', due_date: '' })
+      setForm({
+        title: '',
+        description: '',
+        priority: 'normal',
+        assigned_to: currentUserId,
+        client_id: '',
+        due_date: '',
+      })
       setShowForm(false)
       window.location.reload()
     } finally {
@@ -139,7 +148,7 @@ export function TasquesClient({
     }
   }
 
-  async function changeStatus(taskId: string, newStatus: 'pending' | 'in_progress' | 'done') {
+  async function changeStatus(taskId: string, newStatus: 'pending' | 'in_progress' | 'done' | 'archived') {
     setLoading(taskId)
     await supabase
       .from('tasks')
@@ -160,17 +169,24 @@ export function TasquesClient({
 
   return (
     <div className="space-y-6 max-w-6xl">
+      {/* Capçalera */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Tasques</h1>
           <p className="text-muted-foreground mt-1">
             Gestió de tasques de l&apos;equip
             {pendingCount > 0 && (
-              <span className="ml-2 text-amber-600 font-medium">· {pendingCount} assignades a tu</span>
+              <span className="ml-2 text-amber-600 font-medium">
+                · {pendingCount} assignades a tu
+              </span>
             )}
           </p>
         </div>
-        <Button variant="tramit" onClick={() => setShowForm(true)} className="flex items-center gap-2">
+        <Button
+          variant="tramit"
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-2"
+        >
           <Plus className="h-4 w-4" />
           Nova tasca
         </Button>
@@ -182,7 +198,10 @@ export function TasquesClient({
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Nova tasca</CardTitle>
-              <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => setShowForm(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -268,7 +287,11 @@ export function TasquesClient({
                 <Button type="submit" variant="tramit" disabled={saving}>
                   {saving ? 'Creant...' : 'Crear tasca'}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowForm(false)}
+                >
                   Cancel·lar
                 </Button>
               </div>
@@ -297,6 +320,16 @@ export function TasquesClient({
             {f.label}
           </button>
         ))}
+        <button
+          onClick={() => setShowArchived(!showArchived)}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+            showArchived
+              ? 'bg-muted text-foreground border-muted'
+              : 'border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          📁 {showArchived ? 'Amagar arxivades' : `Arxivades${archivedCount > 0 ? ` (${archivedCount})` : ''}`}
+        </button>
       </div>
 
       {/* Kanban */}
@@ -311,14 +344,19 @@ export function TasquesClient({
               <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${config.bg}`}>
                 <Icon className={`h-4 w-4 ${config.style}`} />
                 <span className="text-sm font-semibold">{config.label}</span>
-                <span className="ml-auto text-xs font-bold text-muted-foreground">{colTasks.length}</span>
+                <span className="ml-auto text-xs font-bold text-muted-foreground">
+                  {colTasks.length}
+                </span>
               </div>
 
               <div className="space-y-2 min-h-[100px]">
                 {colTasks.map(task => {
                   const assignedProfile = task.profiles as { full_name: string; color: string | null } | null
                   const clientName = (task.clients as { name: string } | null)?.name
-                  const isOverdue = task.due_date && task.status !== 'done' && task.due_date < new Date().toISOString().split('T')[0]
+                  const isOverdue = task.due_date &&
+                    task.status !== 'done' &&
+                    task.status !== 'archived' &&
+                    task.due_date < new Date().toISOString().split('T')[0]
                   const daysUntilDue = task.due_date
                     ? Math.ceil((new Date(task.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
                     : null
@@ -331,11 +369,15 @@ export function TasquesClient({
                       <CardContent className="pt-3 pb-3 px-3 space-y-2">
                         <div className="flex items-start gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium leading-tight ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
+                            <p className={`text-sm font-medium leading-tight ${
+                              task.status === 'done' ? 'line-through text-muted-foreground' : ''
+                            }`}>
                               {task.title}
                             </p>
                             {task.description && (
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{task.description}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                                {task.description}
+                              </p>
                             )}
                           </div>
                           <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PRIORITY_CONFIG[task.priority].style}`}>
@@ -348,28 +390,46 @@ export function TasquesClient({
                             <div className="flex items-center gap-1">
                               <div
                                 className="h-5 w-5 rounded-full flex items-center justify-center text-white shrink-0"
-                                style={{ backgroundColor: assignedProfile.color || '#2272A3', fontSize: '8px', fontWeight: 700 }}
+                                style={{
+                                  backgroundColor: assignedProfile.color || '#2272A3',
+                                  fontSize: '8px',
+                                  fontWeight: 700,
+                                }}
                               >
                                 {getInitials(assignedProfile.full_name)}
                               </div>
-                              <span className="text-xs text-muted-foreground">{assignedProfile.full_name.split(' ')[0]}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {assignedProfile.full_name.split(' ')[0]}
+                              </span>
                             </div>
                           )}
                           {clientName && (
                             <span className="text-xs text-muted-foreground">· {clientName}</span>
                           )}
                           {task.due_date && (
-                            <div className={`flex items-center gap-1 ml-auto ${isOverdue ? 'text-red-500' : daysUntilDue !== null && daysUntilDue <= 2 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                            <div className={`flex items-center gap-1 ml-auto ${
+                              isOverdue
+                                ? 'text-red-500'
+                                : daysUntilDue !== null && daysUntilDue <= 2
+                                ? 'text-amber-500'
+                                : 'text-muted-foreground'
+                            }`}>
                               <Calendar className="h-3 w-3" />
                               <span className="text-xs">
-                                {isOverdue ? 'Vençuda' : daysUntilDue === 0 ? 'Avui' : daysUntilDue === 1 ? 'Demà' : task.due_date}
+                                {isOverdue
+                                  ? 'Vençuda'
+                                  : daysUntilDue === 0
+                                  ? 'Avui'
+                                  : daysUntilDue === 1
+                                  ? 'Demà'
+                                  : task.due_date}
                               </span>
                             </div>
                           )}
                         </div>
 
-                        {/* Canviar estat */}
-                        <div className="flex gap-1 pt-1 border-t border-border">
+                        {/* Botons d'estat */}
+                        <div className="flex gap-1 pt-1 border-t border-border flex-wrap">
                           {(['pending', 'in_progress', 'done'] as const).map(s => (
                             <button
                               key={s}
@@ -384,6 +444,21 @@ export function TasquesClient({
                               {STATUS_CONFIG[s].label}
                             </button>
                           ))}
+                          <button
+                            onClick={() => changeStatus(
+                              task.id,
+                              task.status === 'archived' ? 'pending' : 'archived'
+                            )}
+                            disabled={loading === task.id}
+                            title={task.status === 'archived' ? 'Desarxivar' : 'Arxivar'}
+                            className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                              task.status === 'archived'
+                                ? 'bg-tramit-blue text-white'
+                                : 'text-muted-foreground hover:bg-muted'
+                            }`}
+                          >
+                            {task.status === 'archived' ? '↩' : '📁'}
+                          </button>
                         </div>
                       </CardContent>
                     </Card>
@@ -400,6 +475,60 @@ export function TasquesClient({
           )
         })}
       </div>
+
+      {/* Tasques arxivades */}
+      {showArchived && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
+            <span className="text-sm font-semibold text-muted-foreground">📁 Arxivades</span>
+            <span className="ml-auto text-xs font-bold text-muted-foreground">
+              {filtered.filter(t => t.status === 'archived').length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {filtered.filter(t => t.status === 'archived').map(task => {
+              const assignedProfile = task.profiles as { full_name: string; color: string | null } | null
+              const clientName = (task.clients as { name: string } | null)?.name
+
+              return (
+                <Card key={task.id} className="opacity-60">
+                  <CardContent className="pt-3 pb-3 px-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium line-through text-muted-foreground truncate">
+                          {task.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {assignedProfile && (
+                            <span className="text-xs text-muted-foreground">
+                              {assignedProfile.full_name.split(' ')[0]}
+                            </span>
+                          )}
+                          {clientName && (
+                            <span className="text-xs text-muted-foreground">· {clientName}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => changeStatus(task.id, 'pending')}
+                        disabled={loading === task.id}
+                        className="text-xs text-tramit-blue hover:underline shrink-0"
+                      >
+                        Desarxivar
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+            {filtered.filter(t => t.status === 'archived').length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Cap tasca arxivada
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
