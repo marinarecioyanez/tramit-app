@@ -2,9 +2,12 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Mail, Phone, Clock, CheckCircle, User, ChevronDown, ChevronUp, UserPlus } from 'lucide-react'
+import {
+  Mail, Phone, Clock, User,
+  ChevronDown, ChevronUp, UserPlus
+} from 'lucide-react'
 
 interface ContactForm {
   id: string
@@ -21,7 +24,10 @@ interface ContactForm {
   profiles?: { full_name: string } | null
 }
 
-interface Profile { id: string; full_name: string }
+interface Profile {
+  id: string
+  full_name: string
+}
 
 const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
   new: { label: 'Nou', style: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
@@ -37,10 +43,17 @@ function timeAgo(dateStr: string): string {
   return `Fa ${Math.floor(diff / 86400)} dies`
 }
 
-export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; profiles: Profile[] }) {
+export function ContactesClient({
+  forms,
+  profiles,
+}: {
+  forms: ContactForm[]
+  profiles: Profile[]
+}) {
   const [filter, setFilter] = useState<'all' | 'new' | 'assigned' | 'closed'>('all')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
+
   const supabase = createClient()
 
   const filtered = forms.filter(f => filter === 'all' || f.status === filter)
@@ -55,7 +68,8 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
 
   async function assign(id: string, userId: string) {
     setLoading(id)
-    await supabase.from('contact_forms')
+    await supabase
+      .from('contact_forms')
       .update({ assigned_to: userId, status: 'assigned' })
       .eq('id', id)
     setLoading(null)
@@ -77,7 +91,8 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
       .single()
 
     if (newClient) {
-      await supabase.from('contact_forms')
+      await supabase
+        .from('contact_forms')
         .update({ client_id: newClient.id, status: 'closed' })
         .eq('id', form.id)
 
@@ -94,12 +109,15 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
 
   return (
     <div className="space-y-6 max-w-4xl">
+      {/* Capçalera */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Formularis de contacte</h1>
           <p className="text-muted-foreground mt-1">
             Sol·licituds rebudes des de la web
-            {newCount > 0 && <span className="ml-2 text-blue-600 font-medium">· {newCount} nous</span>}
+            {newCount > 0 && (
+              <span className="ml-2 text-blue-600 font-medium">· {newCount} nous</span>
+            )}
           </p>
         </div>
         
@@ -118,7 +136,9 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-              filter === f ? 'bg-tramit-blue text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
+              filter === f
+                ? 'bg-tramit-blue text-white'
+                : 'bg-muted text-muted-foreground hover:text-foreground'
             }`}
           >
             {f === 'all' ? 'Tots' : STATUS_CONFIG[f]?.label}
@@ -127,6 +147,7 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
         ))}
       </div>
 
+      {/* Llista */}
       {filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
@@ -159,7 +180,9 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
                           </span>
                         )}
                       </div>
-                      <p className="text-sm font-medium text-muted-foreground mt-0.5">{form.subject}</p>
+                      <p className="text-sm font-medium text-muted-foreground mt-0.5">
+                        {form.subject}
+                      </p>
                       <div className="flex items-center gap-3 mt-1 flex-wrap">
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Mail className="h-3 w-3" />{form.email}
@@ -183,23 +206,31 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
                       onClick={() => setExpanded(isExpanded ? null : form.id)}
                       className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
                     >
-                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      {isExpanded
+                        ? <ChevronUp className="h-4 w-4" />
+                        : <ChevronDown className="h-4 w-4" />
+                      }
                     </button>
                   </div>
 
+                  {/* Detall expandit */}
                   {isExpanded && (
                     <div className="mt-4 pt-4 border-t space-y-4">
+                      {/* Missatge */}
                       <div className="bg-muted/50 rounded-lg px-4 py-3">
-                        <p className="text-sm">{form.message}</p>
+                        <p className="text-sm leading-relaxed">{form.message}</p>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {/* Assignar */}
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Assignar a</label>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            Assignar a
+                          </label>
                           <select
                             defaultValue={form.assigned_to || ''}
                             onChange={e => e.target.value && assign(form.id, e.target.value)}
+                            disabled={loading === form.id}
                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
                             <option value="">Selecciona treballador</option>
@@ -209,9 +240,11 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
                           </select>
                         </div>
 
-                        {/* Canviar estat */}
+                        {/* Estat */}
                         <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-muted-foreground">Canviar estat</label>
+                          <label className="text-xs font-medium text-muted-foreground">
+                            Canviar estat
+                          </label>
                           <div className="flex gap-1.5 flex-wrap">
                             {(['read', 'assigned', 'closed'] as const).map(s => (
                               <button
@@ -234,7 +267,11 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
                       {/* Accions */}
                       <div className="flex gap-2 flex-wrap">
                         <a href={`mailto:${form.email}?subject=Re: ${form.subject}`}>
-                          <Button size="sm" variant="tramit" className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="tramit"
+                            className="flex items-center gap-1.5"
+                          >
                             <Mail className="h-3.5 w-3.5" />
                             Respondre per email
                           </Button>
@@ -253,7 +290,11 @@ export function ContactesClient({ forms, profiles }: { forms: ContactForm[]; pro
                         )}
                         {form.phone && (
                           <a href={`tel:${form.phone}`}>
-                            <Button size="sm" variant="outline" className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex items-center gap-1.5"
+                            >
                               <Phone className="h-3.5 w-3.5" />
                               Trucar
                             </Button>
