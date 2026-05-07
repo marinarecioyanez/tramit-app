@@ -66,7 +66,6 @@ export function EmailDraft({ clientName }: { clientName?: string }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Prompts ràpids */}
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-2">Accions ràpides:</p>
           <div className="flex gap-1.5 flex-wrap">
@@ -83,7 +82,6 @@ export function EmailDraft({ clientName }: { clientName?: string }) {
           </div>
         </div>
 
-        {/* Instrucció personalitzada */}
         <div className="space-y-1.5">
           <Label>Instrucció personalitzada</Label>
           <div className="flex gap-2">
@@ -123,7 +121,6 @@ export function EmailDraft({ clientName }: { clientName?: string }) {
           </div>
         </div>
 
-        {/* Context opcional */}
         <div className="space-y-1.5">
           <Label>Context addicional <span className="text-muted-foreground">(opcional)</span></Label>
           <Input
@@ -139,7 +136,6 @@ export function EmailDraft({ clientName }: { clientName?: string }) {
           </div>
         )}
 
-        {/* Esborrany generat */}
         {draft && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
