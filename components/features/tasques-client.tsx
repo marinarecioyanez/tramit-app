@@ -48,6 +48,12 @@ const STATUS_CONFIG = {
     style: 'text-green-500',
     bg: 'bg-green-50 dark:bg-green-900/20',
   },
+  archived: {
+    label: 'Arxivada',
+    icon: Circle,
+    style: 'text-muted-foreground',
+    bg: 'bg-muted',
+  },
 }
 
 const PRIORITY_CONFIG = {
@@ -87,9 +93,12 @@ export function TasquesClient({
 
   const supabase = createClient()
 
+  const [showArchived, setShowArchived] = useState(false)
+
   const filtered = tasks.filter(t => {
+    if (t.status === 'archived' && !showArchived) return false
     if (filter === 'mine') return t.assigned_to === currentUserId || t.created_by === currentUserId
-    if (filter === 'pending') return t.status !== 'done'
+    if (filter === 'pending') return t.status !== 'done' && t.status !== 'archived'
     if (filter === 'done') return t.status === 'done'
     return true
   })
