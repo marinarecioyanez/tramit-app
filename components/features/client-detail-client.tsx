@@ -810,3 +810,181 @@ export function ClientDetailClient({
                                   {quote.number}
                                 </p>
                                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${QUOTE_STATUS[quote.status]?.style}`}>
+                                  {QUOTE_STATUS[quote.status]?.label}
+                                </span>
+                              </div>
+                              <p className="text-sm font-medium mt-0.5">{quote.title}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {quote.amount.toLocaleString('ca-ES')}€ + {quote.tax_rate}% IVA ={' '}
+                                <strong>
+                                  {total.toLocaleString('ca-ES', { maximumFractionDigits: 2 })}€
+                                </strong>
+                              </p>
+                              {quote.valid_until && (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Vàlid fins: {quote.valid_until}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-1.5 shrink-0">
+                              {quote.status === 'draft' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateQuoteStatus(quote.id, 'sent')}
+                                  className="text-xs"
+                                >
+                                  Marcar enviat
+                                </Button>
+                              )}
+                              {quote.status === 'sent' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="tramit"
+                                    onClick={() => updateQuoteStatus(quote.id, 'accepted')}
+                                    className="text-xs flex items-center gap-1"
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                    Acceptat
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => updateQuoteStatus(quote.id, 'rejected')}
+                                    className="text-xs flex items-center gap-1 text-red-600 border-red-200"
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                    Rebutjat
+                                  </Button>
+                                </>
+                              )}
+                              {quote.status === 'accepted' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateQuoteStatus(quote.id, 'invoiced')}
+                                  className="text-xs"
+                                >
+                                  Facturat
+                                </Button>
+                              )}
+                              {quote.status === 'invoiced' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateQuoteStatus(quote.id, 'paid')}
+                                  className="text-xs text-green-600 border-green-200"
+                                >
+                                  Cobrat ✓
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Tab: IA ─────────────────────────────────────────── */}
+          {activeTab === 'ia' && (
+            <div className="space-y-4">
+              <ClientOpportunities clientId={client.id} />
+              <EmailDraft clientName={client.name} />
+              <DocumentOCR clientId={client.id} />
+            </div>
+          )}
+
+          {/* ── Tab: RGPD ───────────────────────────────────────── */}
+          {activeTab === 'rgpd' && (
+            <div className="space-y-4">
+              <Card className="border-amber-200 dark:border-amber-800">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-amber-500" />
+                    Consentiments RGPD
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(['communications', 'data_processing', 'marketing'] as const).map(type => {
+                    const consent = consents.find(c => c.type === type)
+                    const isGranted = consent?.granted || false
+
+                    return (
+                      <div
+                        key={type}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{CONSENT_LABELS[type]}</p>
+                          {consent?.granted_at && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {isGranted ? 'Atorgat' : 'Revocat'} el{' '}
+                              {new Date(consent.granted_at).toLocaleDateString('ca-ES')}
+                            </p>
+                          )}
+                          {!consent && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Sense registre
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => updateConsent(type, !isGranted)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ml-4 ${
+                            isGranted ? 'bg-green-500' : 'bg-muted-foreground/30'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                              isGranted ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    )
+                  })}
+
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3 mt-2">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      ⚖️ Tots els canvis de consentiment queden registrats amb data i hora
+                      per compliment del RGPD. El client pot revocar el seu consentiment
+                      en qualsevol moment.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    Dret d&apos;oblit
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    El client pot sol·licitar la supressió de totes les seves dades personals.
+                    Aquesta acció és irreversible i requereix confirmació de l&apos;administrador.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/10"
+                  >
+                    Sol·licitar supressió de dades
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  )
+}
