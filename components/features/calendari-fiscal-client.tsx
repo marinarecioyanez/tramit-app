@@ -125,8 +125,7 @@ export function CalendariFiscalClient({
     URL.revokeObjectURL(url)
   }
 
-  const availableModels = [...new Set(deadlines.filter(d => d.model).map(d => d.model!))]
-
+const availableModels = Array.from(new Set(deadlines.filter(d => d.model).map(d => d.model!)))
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center justify-between flex-wrap gap-4">
