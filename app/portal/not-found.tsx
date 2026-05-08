@@ -17,7 +17,7 @@ export default function PortalNotFound() {
           Aquest link ha caducat o no és vàlid.
           Contacta amb Tràmit Economistes per obtenir un nou accés.
         </p>
-        
+        <a
           href="mailto:info@tramiteconomistes.com"
           className="inline-block bg-tramit-blue text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-tramit-blue-dark transition-colors"
         >
