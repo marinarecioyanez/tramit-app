@@ -7,49 +7,55 @@ import { ClientDetailClient } from '@/components/features/client-detail-client'
 export default async function ClientDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const { data: client } = await supabase
-    .from('clients')
-    .select('*, profiles!clients_responsible_id_fkey(full_name, color)')
-    .eq('id', params.id)
-    .single()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user!.id).single()
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'supervisor'
+
+  const [
+    { data: client },
+    { data: activity },
+    { data: appointments },
+    { data: tasks },
+    { data: quotes },
+    { data: consents },
+    { data: profiles },
+    { data: expedients },
+  ] = await Promise.all([
+    supabase.from('clients')
+      .select('*, profiles!clients_responsible_id_fkey(full_name, color)')
+      .eq('id', params.id).single(),
+    supabase.from('client_activity')
+      .select('*, profiles!client_activity_user_id_fkey(full_name, color)')
+      .eq('client_id', params.id)
+      .order('created_at', { ascending: false }).limit(50),
+    supabase.from('appointments')
+      .select('*')
+      .eq('client_id', params.id)
+      .order('start_time', { ascending: false }).limit(10),
+    supabase.from('tasks')
+      .select('*, profiles!tasks_assigned_to_fkey(full_name, color)')
+      .eq('client_id', params.id)
+      .order('created_at', { ascending: false }),
+    supabase.from('quotes')
+      .select('*')
+      .eq('client_id', params.id)
+      .order('created_at', { ascending: false }),
+    supabase.from('client_consents')
+      .select('*')
+      .eq('client_id', params.id),
+    supabase.from('profiles')
+      .select('id, full_name, color')
+      .eq('active', true)
+      .order('full_name'),
+    supabase.from('expedients')
+      .select('*, profiles!expedients_responsible_id_fkey(full_name, color)')
+      .eq('client_id', params.id)
+      .order('year', { ascending: false })
+      .order('created_at', { ascending: false }),
+  ])
 
   if (!client) notFound()
-
-  const { data: activity } = await supabase
-    .from('client_activity')
-    .select('*, profiles!client_activity_user_id_fkey(full_name, color)')
-    .eq('client_id', params.id)
-    .order('created_at', { ascending: false })
-    .limit(50)
-
-  const { data: appointments } = await supabase
-    .from('appointments')
-    .select('*')
-    .eq('client_id', params.id)
-    .order('start_time', { ascending: false })
-    .limit(10)
-
-  const { data: tasks } = await supabase
-    .from('tasks')
-    .select('*, profiles!tasks_assigned_to_fkey(full_name, color)')
-    .eq('client_id', params.id)
-    .order('created_at', { ascending: false })
-
-  const { data: quotes } = await supabase
-    .from('quotes')
-    .select('*')
-    .eq('client_id', params.id)
-    .order('created_at', { ascending: false })
-
-  const { data: consents } = await supabase
-    .from('client_consents')
-    .select('*')
-    .eq('client_id', params.id)
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, color')
-    .eq('active', true)
 
   return (
     <ClientDetailClient
@@ -60,6 +66,8 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       quotes={quotes || []}
       consents={consents || []}
       profiles={profiles || []}
+      expedients={expedients || []}
+      isAdmin={isAdmin}
     />
   )
 }
