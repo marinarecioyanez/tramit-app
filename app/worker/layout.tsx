@@ -12,10 +12,7 @@ export default async function WorkerLayout({
 }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
+  if (!user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -23,13 +20,8 @@ export default async function WorkerLayout({
     .eq('id', user.id)
     .single()
 
-  if (!profile) {
-    redirect('/login')
-  }
-
-  if (profile.role === 'admin' || profile.role === 'supervisor') {
-    redirect('/dashboard')
-  }
+  if (!profile) redirect('/login')
+  if (profile.role === 'admin' || profile.role === 'supervisor') redirect('/dashboard')
 
   const typedProfile: Profile = {
     id: profile.id,
@@ -41,6 +33,7 @@ export default async function WorkerLayout({
     telegram_chat_id: profile.telegram_chat_id ?? null,
     active: profile.active ?? true,
     avatar_url: profile.avatar_url ?? null,
+    color: profile.color ?? null,
     created_at: profile.created_at,
     updated_at: profile.updated_at,
   }
