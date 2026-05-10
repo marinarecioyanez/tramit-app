@@ -13,7 +13,6 @@ export default async function WorkerEquipPage() {
 
   const now = new Date()
   const currentYear = now.getFullYear()
-  const today = now.toISOString().split('T')[0]
 
   const { data: requests } = await supabase
     .from('absence_requests')
@@ -29,28 +28,16 @@ export default async function WorkerEquipPage() {
 
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, full_name, color, role, email')
+    .select('id, full_name, color, role, email, phone, active')
     .eq('active', true)
     .order('full_name')
-
-  const { data: holidays } = await supabase
-    .from('holidays')
-    .select('date')
-    .eq('year', currentYear)
-
-  const { data: closures } = await supabase
-    .from('company_closures')
-    .select('date')
 
   return (
     <EquipClient
       requests={requests || []}
       balances={balances || []}
       profiles={profiles || []}
-      holidays={holidays?.map(h => h.date) || []}
-      closures={closures?.map(c => c.date) || []}
       currentYear={currentYear}
-      today={today}
       isWorker={true}
       currentUserId={user.id}
     />
