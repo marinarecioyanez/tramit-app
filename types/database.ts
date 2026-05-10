@@ -11,6 +11,7 @@ export interface Profile {
   telegram_chat_id: string | null
   active: boolean
   avatar_url: string | null
+  color: string | null
   created_at: string
   updated_at: string
 }
@@ -40,7 +41,6 @@ export interface AbsenceRequest {
   approved_at: string | null
   created_at: string
   updated_at: string
-  // joined
   profile?: Profile
 }
 
@@ -56,7 +56,6 @@ export interface VacationBalance {
   carry_over_expires_at: string | null
   created_at: string
   updated_at: string
-  // joined
   profile?: Profile
 }
 
