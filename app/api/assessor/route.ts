@@ -70,7 +70,7 @@ EQUIP (${(profiles || []).length} membres actius):
 ${(profiles || []).map((p: { full_name: string; role: string }) => `- ${p.full_name} (${p.role})`).join('\n')}
 
 SOL·LICITUDS DE VACANCES/ABSÈNCIES PENDENTS D'APROVACIÓ (${(pendingRequests || []).length}):
-${(pendingRequests || []).length === 0 ? '- Cap pendent' : (pendingRequests || []).map((r: { type: string; start_date: string; end_date: string; profiles?: { full_name?: string } | null }) => `- ${(r.profiles as { full_name?: string } | null)?.full_name || '?'}: ${r.type} (${r.start_date} → ${r.end_date})`).join('\n')}
+${(pendingRequests || []).length === 0 ? '- Cap pendent' : (pendingRequests || []).map((r: any) => { const name = Array.isArray(r.profiles) ? r.profiles[0]?.full_name : r.profiles?.full_name; return `- ${name || '?'}: ${r.type} (${r.start_date} → ${r.end_date})`; }).join('\n')}
 
 TERMINIS FISCALS PRÒXIMS (30 dies):
 ${(upcomingDeadlines || []).length === 0 ? '- Cap termini proper' : (upcomingDeadlines || []).map((d: { name: string; date: string; model?: string | null }) => `- ${d.date}: ${d.name}${d.model ? ` (Model ${d.model})` : ''}`).join('\n')}
