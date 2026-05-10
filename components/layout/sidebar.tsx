@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Calendar, Umbrella, Users,
   BarChart3, Settings, Home, LogOut,
   UserCircle, BookOpen, MessageSquare,
-  CheckSquare, Inbox, FileText,
+  CheckSquare, FileText, Shield,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { TramitLogo } from './logo'
@@ -19,27 +19,26 @@ interface NavItem {
 }
 
 const adminNavItems: NavItem[] = [
-  { label: 'Tauler', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Missatges', href: '/dashboard/missatges', icon: MessageSquare },
-  { label: 'Contactes web', href: '/dashboard/contactes', icon: Inbox },
-  { label: 'Agenda', href: '/dashboard/agenda', icon: Calendar },
-  { label: 'Equip', href: '/dashboard/equip', icon: Umbrella },
-  { label: 'Clients', href: '/dashboard/clients', icon: Users },
-  { label: 'Tasques', href: '/dashboard/tasques', icon: CheckSquare },
-  { label: 'Documents', href: '/dashboard/documents', icon: FileText },
-  { label: 'Informes', href: '/dashboard/informes', icon: BarChart3 },
-  { label: 'Assessor fiscal', href: '/dashboard/assessor', icon: BookOpen },
+  { label: 'Tauler',        href: '/dashboard',              icon: LayoutDashboard },
+  { label: 'Missatges',     href: '/dashboard/missatges',    icon: MessageSquare },
+  { label: 'Agenda',        href: '/dashboard/agenda',       icon: Calendar },
+  { label: 'Equip',         href: '/dashboard/equip',        icon: Umbrella },
+  { label: 'Clients',       href: '/dashboard/clients',      icon: Users },
+  { label: 'Tasques',       href: '/dashboard/tasques',      icon: CheckSquare },
+  { label: 'Documents',     href: '/dashboard/documents',    icon: FileText },
+  { label: 'Informes',      href: '/dashboard/informes',     icon: BarChart3 },
+  { label: 'Assessor Tràmit', href: '/dashboard/assessor',  icon: BookOpen },
   { label: 'Administració', href: '/dashboard/administracio', icon: Settings },
 ]
 
 const workerNavItems: NavItem[] = [
-  { label: 'Inici', href: '/worker', icon: Home },
-  { label: 'Missatges', href: '/worker/missatges', icon: MessageSquare },
-  { label: 'Agenda', href: '/worker/agenda', icon: Calendar },
-  { label: 'Equip', href: '/worker/equip', icon: Umbrella },
-  { label: 'Tasques', href: '/worker/tasques', icon: CheckSquare },
-  { label: 'Assessor fiscal', href: '/worker/assessor', icon: BookOpen },
-  { label: 'El meu perfil', href: '/worker/perfil', icon: UserCircle },
+  { label: 'Inici',           href: '/worker',                      icon: Home },
+  { label: 'Missatges',       href: '/worker/missatges',            icon: MessageSquare },
+  { label: 'Agenda',          href: '/worker/agenda',               icon: Calendar },
+  { label: 'Equip',           href: '/worker/equip',                icon: Umbrella },
+  { label: 'Tasques',         href: '/worker/tasques',              icon: CheckSquare },
+  { label: 'Assessor Tràmit', href: '/worker/assessor',            icon: BookOpen },
+  { label: 'El meu perfil',   href: '/worker/perfil',               icon: UserCircle },
 ]
 
 interface SidebarProps {
@@ -52,6 +51,7 @@ export function Sidebar({ profile, onSignOut, onNavigate }: SidebarProps) {
   const pathname = usePathname()
   const isAdmin = profile.role === 'admin' || profile.role === 'supervisor'
   const navItems = isAdmin ? adminNavItems : workerNavItems
+  const initials = getInitials(profile.full_name || '')
 
   return (
     <aside className="w-[220px] h-screen flex flex-col bg-tramit-blue-dark text-white">
@@ -91,21 +91,21 @@ export function Sidebar({ profile, onSignOut, onNavigate }: SidebarProps) {
       </nav>
 
       <div className="border-t border-white/10 p-3">
-        <div className="flex items-center gap-3 rounded-md px-2 py-2">
+        <div className="flex items-center gap-2 px-2 py-2 mb-1">
           <div
-            className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white"
-            style={{ backgroundColor: (profile as Profile & { color?: string }).color || 'rgba(255,255,255,0.2)' }}
+            className="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+            style={{ backgroundColor: profile.color || '#ffffff33' }}
           >
-            {getInitials(profile.full_name)}
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white truncate">{profile.full_name}</p>
-            <p className="text-xs text-white/50 truncate">{profile.email}</p>
+            <p className="text-xs font-medium text-white truncate">{profile.full_name}</p>
+            <p className="text-[10px] text-white/50 truncate capitalize">{profile.role}</p>
           </div>
         </div>
         <button
           onClick={onSignOut}
-          className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-xs text-white/70 hover:bg-white/10 hover:text-white transition-colors mt-1"
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/60 hover:text-white hover:bg-white/10 rounded-md transition-colors"
         >
           <LogOut className="h-3.5 w-3.5" />
           Tancar sessió
