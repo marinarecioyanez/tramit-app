@@ -260,7 +260,7 @@ export function EquipClient({
     { id: 'absencies',label: 'Absències', icon: <ClipboardList className="h-3.5 w-3.5" />,count: pendingAbs },
     { id: 'saldos',   label: 'Saldos',    icon: <TrendingUp className="h-3.5 w-3.5" /> },
     { id: 'mapa',     label: 'Mapa calor',icon: <Flame className="h-3.5 w-3.5" />,        adminOnly: true },
-  ].filter(t => !t.adminOnly || !isWorker)
+  ].filter(t => !t.adminOnly || !isWorker) as { id: TabId; label: string; icon: React.ReactNode; count?: number; adminOnly?: boolean }[] as { id: TabId; label: string; icon: React.ReactNode; count?: number; adminOnly?: boolean }[] as { id: TabId; label: string; icon: React.ReactNode; count?: number; adminOnly?: boolean }[]
 
   function RequestCard({ req }: { req: Request }) {
     const isOpen = expanded === req.id
