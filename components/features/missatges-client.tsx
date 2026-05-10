@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Send, Inbox, SendHorizonal, Plus, X,
-  CheckCheck, Clock, ChevronRight, Reply
+  Send, Plus, X, CheckCheck, Paperclip, Smile,
+  Search, MoreVertical, ArrowLeft
 } from 'lucide-react'
 
 interface Profile {
@@ -31,19 +31,43 @@ interface Message {
   recipient?: { full_name: string; color: string | null; role: string } | null
 }
 
+interface Conversation {
+  contactId: string
+  contactName: string
+  contactColor: string
+  contactRole: string
+  messages: Message[]
+  lastMessage: Message
+  unread: number
+}
+
 function getInitials(name: string): string {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 }
 
-function timeAgo(dateStr: string): string {
-  const now = new Date()
+function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
+  const now = new Date()
   const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-  if (diff < 60) return 'Ara mateix'
-  if (diff < 3600) return `Fa ${Math.floor(diff / 60)} min`
-  if (diff < 86400) return `Fa ${Math.floor(diff / 3600)}h`
-  if (diff < 604800) return `Fa ${Math.floor(diff / 86400)} dies`
+  if (diff < 60) return 'Ara'
+  if (diff < 3600) return `${Math.floor(diff / 60)}min`
+  if (diff < 86400) return date.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })
+  if (diff < 604800) return date.toLocaleDateString('ca-ES', { weekday: 'short' })
   return date.toLocaleDateString('ca-ES', { day: '2-digit', month: 'short' })
+}
+
+function formatMessageTime(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })
+}
+
+function formatDayLabel(dateStr: string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = Math.floor((now.getTime() - date.getTime()) / 86400000)
+  if (diff === 0) return 'Avui'
+  if (diff === 1) return 'Ahir'
+  return date.toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -59,353 +83,416 @@ export function MissatgesClient({
   currentUserId: string
   profiles: Profile[]
 }) {
-  const [tab, setTab] = useState<'inbox' | 'sent'>('inbox')
-  const [received, setReceived] = useState<Message[]>([])
-  const [sent, setSent] = useState<Message[]>([])
-  const [selected, setSelected] = useState<Message | null>(null)
-  const [showCompose, setShowCompose] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [allMessages, setAllMessages] = useState<Message[]>([])
+  const [activeConvId, setActiveConvId] = useState<string | null>(null)
+  const [showNewConv, setShowNewConv] = useState(false)
+  const [body, setBody] = useState('')
+  const [subject, setSubject] = useState('Missatge intern')
+  const [newRecipient, setNewRecipient] = useState('')
   const [sending, setSending] = useState(false)
-  const [replyMode, setReplyMode] = useState(false)
-
-  const [form, setForm] = useState({
-    recipient_id: '',
-    subject: '',
-    body: '',
-  })
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [showMobileConv, setShowMobileConv] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const supabase = createClient()
 
   useEffect(() => {
     loadMessages()
-    const interval = setInterval(loadMessages, 15000)
+    const interval = setInterval(loadMessages, 10000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [activeConvId, allMessages])
 
   async function loadMessages() {
     try {
       const res = await fetch('/api/messages')
       if (res.ok) {
         const data = await res.json()
-        setReceived(data.received || [])
-        setSent(data.sent || [])
+        const combined = [...(data.received || []), ...(data.sent || [])]
+        setAllMessages(combined)
       }
     } finally {
       setLoading(false)
     }
   }
 
-  async function openMessage(msg: Message) {
-    setSelected(msg)
-    setReplyMode(false)
-    if (!msg.read && msg.recipient_id === currentUserId) {
+  // Agrupar missatges per conversa (per contacte)
+  const conversations: Conversation[] = (() => {
+    const convMap: Record<string, Message[]> = {}
+    allMessages.forEach(msg => {
+      const contactId = msg.sender_id === currentUserId ? msg.recipient_id : msg.sender_id
+      if (!convMap[contactId]) convMap[contactId] = []
+      convMap[contactId].push(msg)
+    })
+
+    return Object.entries(convMap).map(([contactId, msgs]) => {
+      const sorted = msgs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      const last = sorted[sorted.length - 1]
+      const contact = profiles.find(p => p.id === contactId)
+      const unread = msgs.filter(m => m.recipient_id === currentUserId && !m.read).length
+      return {
+        contactId,
+        contactName: contact?.full_name || '—',
+        contactColor: contact?.color || '#2272A3',
+        contactRole: contact?.role || 'worker',
+        messages: sorted,
+        lastMessage: last,
+        unread,
+      }
+    }).sort((a, b) => new Date(b.lastMessage.created_at).getTime() - new Date(a.lastMessage.created_at).getTime())
+  })()
+
+  const filteredConvs = search
+    ? conversations.filter(c => c.contactName.toLowerCase().includes(search.toLowerCase()))
+    : conversations
+
+  const activeConv = conversations.find(c => c.contactId === activeConvId)
+
+  async function openConversation(convId: string) {
+    setActiveConvId(convId)
+    setShowMobileConv(true)
+    setShowNewConv(false)
+    // Marcar com a llegits
+    const conv = conversations.find(c => c.contactId === convId)
+    if (!conv) return
+    const unread = conv.messages.filter(m => m.recipient_id === currentUserId && !m.read)
+    for (const msg of unread) {
       await fetch('/api/messages', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: msg.id }),
       })
-      setReceived(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m))
     }
+    await loadMessages()
   }
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.recipient_id || !form.subject || !form.body) return
+  async function handleSend() {
+    const recipientId = showNewConv ? newRecipient : activeConvId
+    if (!recipientId || !body.trim()) return
     setSending(true)
     try {
-      const payload = replyMode && selected
-        ? { ...form, parent_id: selected.id }
-        : form
-
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          recipient_id: recipientId,
+          subject: showNewConv ? subject : (activeConv?.messages[0]?.subject || 'Missatge intern'),
+          body: body.trim(),
+        }),
       })
       if (res.ok) {
-        setForm({ recipient_id: '', subject: '', body: '' })
-        setShowCompose(false)
-        setReplyMode(false)
+        setBody('')
+        if (showNewConv) {
+          setShowNewConv(false)
+          setActiveConvId(newRecipient)
+          setShowMobileConv(true)
+        }
         await loadMessages()
-        setTab('sent')
       }
     } finally {
       setSending(false)
     }
   }
 
-  function startReply(msg: Message) {
-    const sender = msg.sender as { full_name: string } | null
-    setForm({
-      recipient_id: msg.sender_id,
-      subject: `Re: ${msg.subject}`,
-      body: '',
-    })
-    setReplyMode(true)
-    setShowCompose(true)
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
   }
 
-  const unreadCount = received.filter(m => !m.read).length
-  const currentList = tab === 'inbox' ? received : sent
+  const totalUnread = conversations.reduce((sum, c) => sum + c.unread, 0)
+
+  // Agrupar missatges per dia per mostrar separadors
+  function groupByDay(msgs: Message[]) {
+    const groups: { day: string; messages: Message[] }[] = []
+    msgs.forEach(msg => {
+      const day = msg.created_at.split('T')[0]
+      const last = groups[groups.length - 1]
+      if (last && last.day === day) {
+        last.messages.push(msg)
+      } else {
+        groups.push({ day, messages: [msg] })
+      }
+    })
+    return groups
+  }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-4 max-w-5xl">
-      {/* Llista de missatges */}
-      <div className="w-80 shrink-0 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Missatges</h1>
-          <Button
-            variant="tramit"
-            size="sm"
-            onClick={() => { setShowCompose(true); setReplyMode(false); setForm({ recipient_id: '', subject: '', body: '' }) }}
-            className="flex items-center gap-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Nou
-          </Button>
-        </div>
+    <div className="flex h-[calc(100vh-4rem)] border border-border rounded-xl overflow-hidden bg-background">
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-muted p-1 rounded-lg">
-          <button
-            onClick={() => setTab('inbox')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${tab === 'inbox' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-          >
-            <Inbox className="h-3.5 w-3.5" />
-            Rebuts
-            {unreadCount > 0 && (
-              <span className="bg-tramit-blue text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setTab('sent')}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${tab === 'sent' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}
-          >
-            <SendHorizonal className="h-3.5 w-3.5" />
-            Enviats
-          </button>
+      {/* LLISTA DE CONVERSES */}
+      <div className={`w-80 shrink-0 flex flex-col border-r border-border ${showMobileConv ? 'hidden md:flex' : 'flex'}`}>
+
+        {/* Header */}
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              Missatges
+              {totalUnread > 0 && (
+                <span className="bg-tramit-blue text-white text-xs rounded-full px-2 py-0.5 font-bold">
+                  {totalUnread}
+                </span>
+              )}
+            </h1>
+            <Button
+              variant="tramit"
+              size="sm"
+              onClick={() => { setShowNewConv(true); setActiveConvId(null); setShowMobileConv(true) }}
+              className="flex items-center gap-1"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nou
+            </Button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Cercar conversa..."
+              className="pl-8 h-8 text-sm"
+            />
+          </div>
         </div>
 
         {/* Llista */}
-        <Card className="flex-1 overflow-hidden">
-          <CardContent className="p-0 h-full overflow-y-auto">
-            {loading ? (
-              <div className="space-y-2 p-3">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
-                ))}
-              </div>
-            ) : currentList.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Inbox className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Cap missatge</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {currentList.map(msg => {
-                  const isUnread = !msg.read && msg.recipient_id === currentUserId
-                  const contactProfile = tab === 'inbox'
-                    ? msg.sender as { full_name: string; color: string | null } | null
-                    : msg.recipient as { full_name: string; color: string | null } | null
-                  const color = contactProfile?.color || '#2272A3'
-                  const name = contactProfile?.full_name || '—'
-
-                  return (
-                    <button
-                      key={msg.id}
-                      onClick={() => openMessage(msg)}
-                      className={`w-full text-left p-3 transition-colors hover:bg-muted/50 ${
-                        selected?.id === msg.id ? 'bg-tramit-blue-light dark:bg-blue-900/20' : ''
-                      } ${isUnread ? 'border-l-2 border-tramit-blue' : ''}`}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div
-                          className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5"
-                          style={{ backgroundColor: color }}
-                        >
-                          {getInitials(name)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1">
-                            <p className={`text-xs truncate ${isUnread ? 'font-bold' : 'font-medium'}`}>
-                              {name.split(' ')[0]}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground shrink-0">{timeAgo(msg.created_at)}</p>
-                          </div>
-                          <p className={`text-xs truncate mt-0.5 ${isUnread ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
-                            {msg.subject}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">{msg.body}</p>
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="space-y-1 p-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : filteredConvs.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-sm">Cap conversa</p>
+              <p className="text-xs mt-1">Envia el primer missatge</p>
+            </div>
+          ) : (
+            filteredConvs.map(conv => (
+              <button
+                key={conv.contactId}
+                onClick={() => openConversation(conv.contactId)}
+                className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors hover:bg-muted/50 border-b border-border/50 ${
+                  activeConvId === conv.contactId ? 'bg-tramit-blue-light dark:bg-blue-900/20' : ''
+                }`}
+              >
+                <div className="relative shrink-0">
+                  <div
+                    className="h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                    style={{ backgroundColor: conv.contactColor }}
+                  >
+                    {getInitials(conv.contactName)}
+                  </div>
+                  {conv.unread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 bg-tramit-blue text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                      {conv.unread}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className={`text-sm truncate ${conv.unread > 0 ? 'font-bold' : 'font-medium'}`}>
+                      {conv.contactName}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground shrink-0">
+                      {formatTime(conv.lastMessage.created_at)}
+                    </p>
+                  </div>
+                  <p className={`text-xs truncate mt-0.5 ${conv.unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                    {conv.lastMessage.sender_id === currentUserId ? 'Tu: ' : ''}
+                    {conv.lastMessage.body}
+                  </p>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
       </div>
 
-      {/* Contingut principal */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {showCompose ? (
-          <Card className="flex-1">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">
-                  {replyMode ? 'Respondre' : 'Nou missatge'}
-                </CardTitle>
-                <button
-                  onClick={() => { setShowCompose(false); setReplyMode(false) }}
-                  className="text-muted-foreground hover:text-foreground"
+      {/* ÀREA DE CONVERSA */}
+      <div className={`flex-1 flex flex-col min-w-0 ${!showMobileConv ? 'hidden md:flex' : 'flex'}`}>
+
+        {showNewConv ? (
+          <>
+            {/* Header nova conversa */}
+            <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+              <button
+                onClick={() => { setShowNewConv(false); setShowMobileConv(false) }}
+                className="md:hidden text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <h2 className="font-semibold">Nou missatge</h2>
+              <button onClick={() => setShowNewConv(false)} className="ml-auto text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 p-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label>Per a</Label>
+                <select
+                  value={newRecipient}
+                  onChange={e => setNewRecipient(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <X className="h-4 w-4" />
+                  <option value="">Selecciona destinatari...</option>
+                  {profiles.filter(p => p.id !== currentUserId).map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.full_name} — {ROLE_LABELS[p.role] || p.role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Assumpte</Label>
+                <Input value={subject} onChange={e => setSubject(e.target.value)} />
+              </div>
+            </div>
+            {/* Input enviar */}
+            <div className="p-3 border-t border-border bg-background">
+              <div className="flex items-end gap-2 bg-muted rounded-xl px-3 py-2">
+                <textarea
+                  ref={textareaRef}
+                  value={body}
+                  onChange={e => setBody(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Escriu el missatge..."
+                  rows={3}
+                  className="flex-1 bg-transparent text-sm resize-none focus:outline-none leading-relaxed"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={sending || !body.trim() || !newRecipient}
+                  className="mb-1 p-2 bg-tramit-blue text-white rounded-lg hover:bg-tramit-blue-dark disabled:opacity-40 transition-colors"
+                >
+                  <Send className="h-4 w-4" />
                 </button>
               </div>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSend} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>Per a *</Label>
-                  <select
-                    value={form.recipient_id}
-                    onChange={e => setForm(f => ({ ...f, recipient_id: e.target.value }))}
-                    required
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="">Selecciona un destinatari</option>
-                    {profiles.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.full_name} — {ROLE_LABELS[p.role] || p.role}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <p className="text-xs text-muted-foreground mt-1 ml-1">Enter per enviar · Shift+Enter per salt de línia</p>
+            </div>
+          </>
+        ) : activeConv ? (
+          <>
+            {/* Header conversa activa */}
+            <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+              <button
+                onClick={() => { setShowMobileConv(false); setActiveConvId(null) }}
+                className="md:hidden text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div
+                className="h-9 w-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                style={{ backgroundColor: activeConv.contactColor }}
+              >
+                {getInitials(activeConv.contactName)}
+              </div>
+              <div>
+                <p className="font-semibold text-sm">{activeConv.contactName}</p>
+                <p className="text-xs text-muted-foreground">{ROLE_LABELS[activeConv.contactRole] || activeConv.contactRole}</p>
+              </div>
+            </div>
 
-                <div className="space-y-1.5">
-                  <Label>Assumpte *</Label>
-                  <Input
-                    value={form.subject}
-                    onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
-                    placeholder="Assumpte del missatge"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label>Missatge *</Label>
-                  <textarea
-                    value={form.body}
-                    onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-                    placeholder="Escriu el teu missatge..."
-                    rows={8}
-                    required
-                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    variant="tramit"
-                    disabled={sending}
-                    className="flex items-center gap-2"
-                  >
-                    <Send className="h-4 w-4" />
-                    {sending ? 'Enviant...' : 'Enviar'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => { setShowCompose(false); setReplyMode(false) }}
-                  >
-                    Cancel·lar
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        ) : selected ? (
-          <Card className="flex-1 flex flex-col">
-            <CardHeader className="pb-3 border-b border-border">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="font-semibold text-base">{selected.subject}</h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    {(() => {
-                      const senderProfile = selected.sender as { full_name: string; color: string | null } | null
-                      const recipientProfile = selected.recipient as { full_name: string; color: string | null } | null
-                      const isSent = selected.sender_id === currentUserId
-                      const contactProfile = isSent ? recipientProfile : senderProfile
-                      const color = contactProfile?.color || '#2272A3'
-                      const name = contactProfile?.full_name || '—'
+            {/* Missatges */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {groupByDay(activeConv.messages).map(group => (
+                <div key={group.day}>
+                  {/* Separador de dia */}
+                  <div className="flex items-center gap-3 my-4">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground px-2 shrink-0">
+                      {formatDayLabel(group.day)}
+                    </span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  <div className="space-y-2">
+                    {group.messages.map(msg => {
+                      const isMine = msg.sender_id === currentUserId
                       return (
-                        <>
-                          <div
-                            className="h-6 w-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                            style={{ backgroundColor: color }}
-                          >
-                            {getInitials(name)}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {isSent ? `A: ${name}` : `De: ${name}`}
-                            {' · '}
-                            {timeAgo(selected.created_at)}
-                          </p>
-                          {selected.read && !isSent && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <CheckCheck className="h-3 w-3 text-tramit-blue" />
-                              Llegit
+                        <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                          {!isMine && (
+                            <div
+                              className="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 mr-2 mt-1"
+                              style={{ backgroundColor: activeConv.contactColor }}
+                            >
+                              {getInitials(activeConv.contactName)}
                             </div>
                           )}
-                        </>
+                          <div className={`max-w-[70%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
+                            <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+                              isMine
+                                ? 'bg-tramit-blue text-white rounded-br-sm'
+                                : 'bg-muted text-foreground rounded-bl-sm'
+                            }`}>
+                              {msg.body.split('\n').map((line, i) => (
+                                <span key={i}>{line}{i < msg.body.split('\n').length - 1 && <br />}</span>
+                              ))}
+                            </div>
+                            <div className={`flex items-center gap-1 mt-0.5 ${isMine ? 'flex-row-reverse' : ''}`}>
+                              <span className="text-[10px] text-muted-foreground">{formatMessageTime(msg.created_at)}</span>
+                              {isMine && (
+                                <CheckCheck className={`h-3 w-3 ${msg.read ? 'text-tramit-blue' : 'text-muted-foreground'}`} />
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       )
-                    })()}
+                    })}
                   </div>
                 </div>
-                {selected.recipient_id === currentUserId && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => startReply(selected)}
-                    className="flex items-center gap-1.5 shrink-0"
-                  >
-                    <Reply className="h-3.5 w-3.5" />
-                    Respondre
-                  </Button>
-                )}
+              ))}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Input enviar */}
+            <div className="p-3 border-t border-border bg-background">
+              <div className="flex items-end gap-2 bg-muted rounded-xl px-3 py-2">
+                <textarea
+                  ref={textareaRef}
+                  value={body}
+                  onChange={e => setBody(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={`Missatge per a ${activeConv.contactName.split(' ')[0]}...`}
+                  rows={1}
+                  style={{ minHeight: '24px', maxHeight: '120px' }}
+                  className="flex-1 bg-transparent text-sm resize-none focus:outline-none leading-relaxed"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={sending || !body.trim()}
+                  className="mb-0.5 p-2 bg-tramit-blue text-white rounded-lg hover:bg-tramit-blue-dark disabled:opacity-40 transition-colors"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
               </div>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto pt-4">
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                {selected.body.split('\n').map((line, i) => (
-                  <p key={i} className={`text-sm leading-relaxed ${line === '' ? 'mt-3' : 'mt-1'}`}>
-                    {line || '\u00A0'}
-                  </p>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+              <p className="text-xs text-muted-foreground mt-1 ml-1">Enter per enviar · Shift+Enter per salt de línia</p>
+            </div>
+          </>
         ) : (
-          <Card className="flex-1 flex items-center justify-center">
-            <div className="text-center text-muted-foreground space-y-3">
-              <Inbox className="h-12 w-12 mx-auto opacity-20" />
-              <div>
-                <p className="font-medium">Selecciona un missatge</p>
-                <p className="text-sm mt-1">O crea un nou missatge per a l&apos;equip</p>
+          <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
+            <div>
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <Send className="h-7 w-7 opacity-30" />
               </div>
+              <p className="font-medium">Selecciona una conversa</p>
+              <p className="text-sm mt-1">O inicia un nou missatge</p>
               <Button
                 variant="tramit"
                 size="sm"
-                onClick={() => setShowCompose(true)}
-                className="flex items-center gap-2"
+                className="mt-4"
+                onClick={() => { setShowNewConv(true); setShowMobileConv(true) }}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4 mr-1.5" />
                 Nou missatge
               </Button>
             </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>
