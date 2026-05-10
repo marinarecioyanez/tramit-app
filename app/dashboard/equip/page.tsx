@@ -23,7 +23,7 @@ export default async function EquipPage() {
 
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('id, full_name, color, role, email')
+    .select('id, full_name, color, role, email, phone, active')
     .eq('active', true)
     .order('full_name')
 
@@ -41,8 +41,6 @@ export default async function EquipPage() {
       requests={requests || []}
       balances={balances || []}
       profiles={profiles || []}
-      holidays={holidays?.map(h => h.date) || []}
-      closures={closures?.map(c => c.date) || []}
       currentYear={currentYear}
       today={today}
     />
