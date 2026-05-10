@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 === CONTEXT ACTUAL DE TRÀMIT ECONOMISTES (${new Date().toLocaleDateString('ca-ES')}) ===
 
 EQUIP (${(profiles || []).length} membres actius):
-${(profiles || []).map((p: { full_name: string; role: string }) => `- ${p.full_name} (${p.role})`).join('\n')}
+${(profiles || []).map((p: any) => `- ${p.full_name} (${p.role})`).join('\n')}
 
 SOL·LICITUDS DE VACANCES/ABSÈNCIES PENDENTS D'APROVACIÓ (${(pendingRequests || []).length}):
 ${(pendingRequests || []).length === 0 ? '- Cap pendent' : (pendingRequests || []).map((r: any) => { const name = Array.isArray(r.profiles) ? r.profiles[0]?.full_name : r.profiles?.full_name; return `- ${name || '?'}: ${r.type} (${r.start_date} → ${r.end_date})`; }).join('\n')}
@@ -76,16 +76,16 @@ TERMINIS FISCALS PRÒXIMS (30 dies):
 ${(upcomingDeadlines || []).length === 0 ? '- Cap termini proper' : (upcomingDeadlines || []).map((d: { name: string; date: string; model?: string | null }) => `- ${d.date}: ${d.name}${d.model ? ` (Model ${d.model})` : ''}`).join('\n')}
 
 TASQUES ACTIVES (${(pendingTasks || []).length}):
-${(pendingTasks || []).slice(0, 8).map((t: { title: string; priority: string; due_date?: string | null; profiles?: { full_name?: string } | null; clients?: { name?: string } | null }) => `- [${t.priority.toUpperCase()}] ${t.title}${(t.clients as { name?: string } | null)?.name ? ` → Client: ${(t.clients as { name: string }).name}` : ''}${(t.profiles as { full_name?: string } | null)?.full_name ? ` (Assignada a: ${(t.profiles as { full_name: string }).full_name})` : ''}${t.due_date ? ` | Data límit: ${t.due_date}` : ''}`).join('\n')}
+${(pendingTasks || []).slice(0, 8).map((t: any) => { const clientName = Array.isArray(t.clients) ? t.clients[0]?.name : t.clients?.name; const assignedName = Array.isArray(t.profiles) ? t.profiles[0]?.full_name : t.profiles?.full_name; return `- [${t.priority.toUpperCase()}] ${t.title}${clientName ? ` → Client: ${clientName}` : ''}${assignedName ? ` (Assignada a: ${assignedName})` : ''}${t.due_date ? ` | Data límit: ${t.due_date}` : ''}`; }).join('\n')}
 
 ABSÈNCIES PRÒXIMES DE L'EQUIP:
-${(recentActivity || []).length === 0 ? '- Cap absència propera' : (recentActivity || []).map((a: { profiles?: { full_name?: string } | null; type: string; start_date: string; end_date: string }) => `- ${(a.profiles as { full_name?: string } | null)?.full_name || '?'}: ${a.type} (${a.start_date} → ${a.end_date})`).join('\n')}
+${(recentActivity || []).length === 0 ? '- Cap absència propera' : (recentActivity || []).map((a: any) => { const name = Array.isArray(a.profiles) ? a.profiles[0]?.full_name : a.profiles?.full_name; return `- ${name || '?'}: ${a.type} (${a.start_date} → ${a.end_date})`; }).join('\n')}
 
 CLIENTS SENSE CONTACTE >90 DIES (${staleClients.length}):
 ${staleClients.length === 0 ? '- Cap client sense contacte recent' : staleClients.slice(0, 5).map(c => `- ${c.name}`).join('\n')}
 
 ${isAdmin && (balances || []).length > 0 ? `SALDOS DE VACANCES ${currentYear}:
-${(balances || []).map((b: { profiles?: { full_name?: string } | null; total_days: number; used_days: number; pending_days: number }) => `- ${(b.profiles as { full_name?: string } | null)?.full_name || '?'}: ${b.used_days}/${b.total_days} dies usats (${b.pending_days} pendents)`).join('\n')}` : ''}
+${(balances || []).map((b: any) => { const name = Array.isArray(b.profiles) ? b.profiles[0]?.full_name : b.profiles?.full_name; return `- ${name || '?'}: ${b.used_days}/${b.total_days} dies usats (${b.pending_days} pendents)`; }).join('\n')}` : ''}
 `
 
   const systemPrompt = `Ets l'Assessor Tràmit, l'assistent intel·ligent intern de Tràmit Economistes, una gestoria professional a Catalunya.
