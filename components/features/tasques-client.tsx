@@ -7,469 +7,397 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Users, Umbrella, ClipboardList, TrendingUp,
-  Plus, X, ChevronDown, ChevronUp, Pencil, Save,
-  CheckCircle, AlertTriangle, Mail, Phone
+  Plus, X, CheckCircle, Clock, AlertTriangle,
+  Circle, ArrowRight, Calendar, User, Kanban,
+  List, ChevronDown, ChevronUp, Pencil, Save
 } from 'lucide-react'
 
-interface Request {
+interface Task {
   id: string
-  user_id: string
-  type: string
-  start_date: string
-  end_date: string
-  working_days: number
-  status: string
-  notes: string | null
-  admin_note: string | null
+  title: string
+  description: string | null
+  status: 'pending' | 'in_progress' | 'done' | 'archived'
+  priority: 'normal' | 'high' | 'urgent'
+  assigned_to: string | null
+  client_id: string | null
+  created_by: string
+  due_date: string | null
+  done_at: string | null
   created_at: string
-  profiles?: { full_name: string; color: string | null; email: string } | null
-}
-
-interface Balance {
-  user_id: string
-  year: number
-  total_days: number
-  used_days: number
-  pending_days: number
-  remaining_days?: number
   profiles?: { full_name: string; color: string | null } | null
+  clients?: { name: string } | null
 }
 
-interface Profile {
-  id: string
-  full_name: string
-  color: string | null
-  role: string
-  email: string
-  phone: string | null
-  active: boolean
+interface Profile { id: string; full_name: string; color: string | null }
+interface Client { id: string; name: string }
+
+const STATUS_CONFIG = {
+  pending:    { label: 'Per fer',   icon: Circle,       style: 'text-slate-500',  bg: 'bg-slate-50 dark:bg-slate-800/50',       border: 'border-slate-200 dark:border-slate-700' },
+  in_progress:{ label: 'En curs',  icon: ArrowRight,   style: 'text-amber-500',  bg: 'bg-amber-50 dark:bg-amber-900/20',       border: 'border-amber-200 dark:border-amber-800' },
+  done:       { label: 'Completat', icon: CheckCircle,  style: 'text-green-500',  bg: 'bg-green-50 dark:bg-green-900/20',       border: 'border-green-200 dark:border-green-800' },
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  vacation: 'Vacances',
-  sick_leave: 'Baixa mèdica',
-  permission: 'Permís',
-  other: 'Altres',
+const PRIORITY_CONFIG = {
+  normal: { label: 'Normal', style: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' },
+  high:   { label: 'Alta',   style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  urgent: { label: 'Urgent', style: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
 }
 
-const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
-  pending:  { label: 'Pendent',  style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  approved: { label: 'Aprovada', style: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  rejected: { label: 'Rebutjada', style: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administradora',
-  supervisor: 'Supervisor',
-  worker: 'Treballador/a',
-}
+const QUICK_TEMPLATES = [
+  { title: 'Preparar IRPF', priority: 'high' as const },
+  { title: 'Tancament trimestral', priority: 'urgent' as const },
+  { title: 'Revisar nòmines', priority: 'normal' as const },
+  { title: 'Alta autònom', priority: 'normal' as const },
+]
 
 function getInitials(name: string): string {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 }
 
-type TabId = 'equip' | 'vacances' | 'absencies' | 'saldos'
-
-export function EquipClient({
-  requests,
-  balances,
+export function TasquesClient({
+  tasks,
   profiles,
-  currentYear,
-  isWorker = false,
+  clients,
   currentUserId,
 }: {
-  requests: Request[]
-  balances: Balance[]
+  tasks: Task[]
   profiles: Profile[]
-  currentYear: number
-  isWorker?: boolean
-  currentUserId?: string
+  clients: Client[]
+  currentUserId: string
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>('equip')
-  const [filterStatus, setFilterStatus] = useState('')
-  const [expanded, setExpanded] = useState<string | null>(null)
-  const [approving, setApproving] = useState<string | null>(null)
-  const [adminNote, setAdminNote] = useState('')
-  const [editingBalance, setEditingBalance] = useState<string | null>(null)
-  const [editBalanceValue, setEditBalanceValue] = useState('')
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
+  const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [movingId, setMovingId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [localTasks, setLocalTasks] = useState<Task[]>(tasks)
+  const [form, setForm] = useState({
+    title: '', description: '', priority: 'normal' as Task['priority'],
+    assigned_to: '', client_id: '', due_date: '',
+  })
 
   const supabase = createClient()
 
-  const vacances = requests.filter(r => r.type === 'vacation')
-  const absencies = requests.filter(r => r.type !== 'vacation')
-  const pendingCount = requests.filter(r => r.status === 'pending').length
+  const activeTasks = localTasks.filter(t => t.status !== 'archived')
+  const pending = activeTasks.filter(t => t.status === 'pending')
+  const inProgress = activeTasks.filter(t => t.status === 'in_progress')
+  const done = activeTasks.filter(t => t.status === 'done')
 
-  const filteredVacances = filterStatus ? vacances.filter(r => r.status === filterStatus) : vacances
-  const filteredAbs = filterStatus ? absencies.filter(r => r.status === filterStatus) : absencies
-
-  async function handleApprove(id: string, status: 'approved' | 'rejected') {
-    setApproving(id)
-    try {
-      const res = await fetch('/api/vacances/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status, admin_note: adminNote }),
-      })
-      if (res.ok) {
-        setMsg({ type: 'ok', text: status === 'approved' ? 'Aprovada correctament' : 'Rebutjada' })
-        setTimeout(() => window.location.reload(), 1000)
-      }
-    } finally {
-      setApproving(null)
-      setAdminNote('')
-    }
-  }
-
-  async function handleSaveBalance(userId: string, year: number) {
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.title.trim()) return
     setSaving(true)
-    const newTotal = parseInt(editBalanceValue)
-    if (isNaN(newTotal) || newTotal < 0) { setSaving(false); return }
-    const { error } = await supabase
-      .from('vacation_balances')
-      .upsert({ user_id: userId, year, total_days: newTotal }, { onConflict: 'user_id,year' })
+    const { data, error } = await supabase.from('tasks').insert({
+      title: form.title,
+      description: form.description || null,
+      priority: form.priority,
+      assigned_to: form.assigned_to || null,
+      client_id: form.client_id || null,
+      due_date: form.due_date || null,
+      status: 'pending',
+      created_by: currentUserId,
+    }).select().single()
     setSaving(false)
-    if (!error) {
-      setEditingBalance(null)
-      setMsg({ type: 'ok', text: 'Saldo actualitzat' })
-      setTimeout(() => { setMsg(null); window.location.reload() }, 1500)
+    if (!error && data) {
+      setLocalTasks(prev => [data, ...prev])
+      setForm({ title: '', description: '', priority: 'normal', assigned_to: '', client_id: '', due_date: '' })
+      setShowForm(false)
     }
   }
 
-  const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }>; count?: number }[] = [
-    { id: 'equip',     label: 'Equip',     icon: Users },
-    { id: 'vacances',  label: 'Vacances',  icon: Umbrella,      count: pendingCount },
-    { id: 'absencies', label: 'Absències', icon: ClipboardList },
-    { id: 'saldos',    label: 'Saldos',    icon: TrendingUp },
-  ]
+  async function moveTask(id: string, newStatus: Task['status']) {
+    setMovingId(id)
+    await supabase.from('tasks').update({
+      status: newStatus,
+      done_at: newStatus === 'done' ? new Date().toISOString() : null,
+    }).eq('id', id)
+    setLocalTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t))
+    setMovingId(null)
+  }
+
+  function applyTemplate(tpl: typeof QUICK_TEMPLATES[0]) {
+    setForm(f => ({ ...f, title: tpl.title, priority: tpl.priority }))
+    setShowForm(true)
+  }
+
+  function TaskCard({ task }: { task: Task }) {
+    const assignee = task.profiles
+    const prioConf = PRIORITY_CONFIG[task.priority]
+    const isExpanded = expandedId === task.id
+    const nextStatus: Record<Task['status'], Task['status'] | null> = {
+      pending: 'in_progress', in_progress: 'done', done: null, archived: null,
+    }
+    const prevStatus: Record<Task['status'], Task['status'] | null> = {
+      pending: null, in_progress: 'pending', done: 'in_progress', archived: null,
+    }
+    const next = nextStatus[task.status]
+    const prev = prevStatus[task.status]
+
+    return (
+      <div className="bg-background border border-border rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${prioConf.style}`}>
+                {prioConf.label}
+              </span>
+              {task.clients && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                  {(task.clients as { name: string }).name}
+                </span>
+              )}
+            </div>
+            <p className={`text-sm font-medium leading-snug ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
+              {task.title}
+            </p>
+            {task.due_date && (
+              <p className={`text-xs mt-1 flex items-center gap-1 ${
+                new Date(task.due_date) < new Date() && task.status !== 'done'
+                  ? 'text-red-500' : 'text-muted-foreground'
+              }`}>
+                <Calendar className="h-3 w-3" />
+                {new Date(task.due_date).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short' })}
+              </p>
+            )}
+          </div>
+          <button onClick={() => setExpandedId(isExpanded ? null : task.id)}
+            className="text-muted-foreground hover:text-foreground p-0.5">
+            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between mt-2">
+          {assignee ? (
+            <div className="flex items-center gap-1.5">
+              <div className="h-5 w-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+                style={{ backgroundColor: (assignee as { color: string | null }).color || '#2272A3' }}>
+                {getInitials((assignee as { full_name: string }).full_name)}
+              </div>
+              <span className="text-xs text-muted-foreground">{(assignee as { full_name: string }).full_name.split(' ')[0]}</span>
+            </div>
+          ) : <span />}
+          <div className="flex gap-1">
+            {prev && (
+              <button onClick={() => moveTask(task.id, prev)}
+                disabled={movingId === task.id}
+                className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                ←
+              </button>
+            )}
+            {next && (
+              <button onClick={() => moveTask(task.id, next)}
+                disabled={movingId === task.id}
+                className="text-xs px-1.5 py-0.5 rounded bg-tramit-blue-light text-tramit-blue dark:bg-blue-900/20 dark:text-blue-400 hover:bg-tramit-blue hover:text-white transition-colors font-medium">
+                {next === 'in_progress' ? 'Iniciar' : 'Fet ✓'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isExpanded && task.description && (
+          <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">{task.description}</p>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 max-w-5xl">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Equip</h1>
-          <p className="text-muted-foreground mt-1">{profiles.length} membres · Any {currentYear}</p>
+          <h1 className="text-2xl font-bold">Tasques</h1>
+          <p className="text-muted-foreground mt-1">
+            {pending.length} per fer · {inProgress.length} en curs · {done.length} completades
+          </p>
         </div>
-      </div>
-
-      {msg && (
-        <div className={`flex items-center gap-2 px-4 py-3 rounded-lg text-sm ${msg.type === 'ok' ? 'bg-green-50 text-green-700 dark:bg-green-900/20' : 'bg-red-50 text-red-700'}`}>
-          {msg.type === 'ok' ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-          {msg.text}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit flex-wrap">
-        {TABS.map(tab => {
-          const Icon = tab.icon
-          return (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                activeTab === tab.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}>
-              <Icon className="h-4 w-4" />
-              {tab.label}
-              {tab.count ? (
-                <span className="bg-amber-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">{tab.count}</span>
-              ) : null}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 bg-muted p-1 rounded-lg">
+            <button onClick={() => setViewMode('kanban')}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'kanban' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+              <Kanban className="h-4 w-4" />
             </button>
-          )
-        })}
+            <button onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+          <Button variant="tramit" size="sm" onClick={() => setShowForm(true)} className="flex items-center gap-1.5">
+            <Plus className="h-3.5 w-3.5" /> Nova tasca
+          </Button>
+        </div>
       </div>
 
-      {/* TAB EQUIP */}
-      {activeTab === 'equip' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {profiles.map(profile => (
-            <Card key={profile.id} className={!profile.active ? 'opacity-60' : ''}>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-start gap-3">
-                  <div
-                    className="h-12 w-12 rounded-full flex items-center justify-center text-white text-base font-bold shrink-0"
-                    style={{ backgroundColor: profile.color || '#2272A3' }}
-                  >
-                    {getInitials(profile.full_name)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm">{profile.full_name}</p>
-                      {!profile.active && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Inactiu</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{ROLE_LABELS[profile.role] || profile.role}</p>
-                    <div className="mt-2 space-y-1">
-                      {profile.email && (
-                        <a href={`mailto:${profile.email}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-tramit-blue">
-                          <Mail className="h-3 w-3" />{profile.email}
-                        </a>
-                      )}
-                      {profile.phone && (
-                        <a href={`tel:${profile.phone}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-tramit-blue">
-                          <Phone className="h-3 w-3" />{profile.phone}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  {/* Saldo ràpid */}
-                  {(() => {
-                    const bal = balances.find(b => b.user_id === profile.id && b.year === currentYear)
-                    if (!bal) return null
-                    const remaining = bal.total_days - bal.used_days
-                    return (
-                      <div className="text-right shrink-0">
-                        <p className="text-xl font-bold text-tramit-blue">{remaining}</p>
-                        <p className="text-[10px] text-muted-foreground">dies restants</p>
-                      </div>
-                    )
-                  })()}
-                </div>
-              </CardContent>
-            </Card>
+      {/* Plantilles ràpides */}
+      {!showForm && (
+        <div className="flex gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground self-center">Plantilles:</span>
+          {QUICK_TEMPLATES.map(tpl => (
+            <button key={tpl.title} onClick={() => applyTemplate(tpl)}
+              className="text-xs px-3 py-1.5 rounded-lg border border-border hover:border-tramit-blue/50 transition-colors">
+              {tpl.title}
+            </button>
           ))}
         </div>
       )}
 
-      {/* TAB VACANCES */}
-      {activeTab === 'vacances' && (
-        <div className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
-            {['', 'pending', 'approved', 'rejected'].map(s => (
-              <button key={s} onClick={() => setFilterStatus(s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  filterStatus === s ? 'bg-tramit-blue text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}>
-                {s === '' ? 'Totes' : STATUS_CONFIG[s]?.label}
-                {s === 'pending' && pendingCount > 0 ? ` (${pendingCount})` : ''}
+      {/* Formulari nova tasca */}
+      {showForm && (
+        <Card className="border-tramit-blue/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Nova tasca</CardTitle>
+              <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
               </button>
-            ))}
-          </div>
-          {filteredVacances.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">
-              <Umbrella className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Cap sol·licitud</p>
-            </CardContent></Card>
-          ) : (
-            <div className="space-y-2">
-              {filteredVacances.map(req => {
-                const p = req.profiles
-                const color = p?.color || '#2272A3'
-                const name = p?.full_name || '—'
-                const isExpanded = expanded === req.id
-                const isMyRequest = req.user_id === currentUserId
-
-                return (
-                  <Card key={req.id} className={req.status === 'pending' ? 'border-amber-200 dark:border-amber-800' : ''}>
-                    <CardContent className="pt-3 pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                          style={{ backgroundColor: color }}>
-                          {getInitials(name)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-sm">{name}</p>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_CONFIG[req.status]?.style}`}>
-                              {STATUS_CONFIG[req.status]?.label}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {req.start_date} → {req.end_date} · {req.working_days} dies laborables
-                          </p>
-                        </div>
-                        {!isWorker && req.status === 'pending' && (
-                          <button onClick={() => { setExpanded(isExpanded ? null : req.id); setAdminNote('') }}
-                            className="text-muted-foreground hover:text-foreground p-1">
-                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                          </button>
-                        )}
-                      </div>
-
-                      {isExpanded && !isWorker && req.status === 'pending' && (
-                        <div className="mt-3 pt-3 border-t space-y-3">
-                          {req.notes && (
-                            <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-                              Nota del treballador: {req.notes}
-                            </p>
-                          )}
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium">Nota de l&apos;admin (opcional)</label>
-                            <Input value={adminNote} onChange={e => setAdminNote(e.target.value)}
-                              placeholder="Motiu de la decisió..." className="h-8 text-sm" />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="tramit"
-                              onClick={() => handleApprove(req.id, 'approved')}
-                              disabled={approving === req.id}>
-                              <CheckCircle className="h-3.5 w-3.5 mr-1" />Aprovar
-                            </Button>
-                            <Button size="sm" variant="outline"
-                              onClick={() => handleApprove(req.id, 'rejected')}
-                              disabled={approving === req.id}
-                              className="text-red-600 hover:text-red-700 border-red-200">
-                              <X className="h-3.5 w-3.5 mr-1" />Rebutjar
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
-              })}
             </div>
-          )}
-        </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Títol *</Label>
+                  <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="Descripció de la tasca" required autoFocus />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Prioritat</Label>
+                  <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as Task['priority'] }))}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <option value="normal">Normal</option>
+                    <option value="high">Alta</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Data límit</Label>
+                  <Input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Assignar a</Label>
+                  <select value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <option value="">Sense assignar</option>
+                    {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Client relacionat</Label>
+                  <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <option value="">Sense client</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Descripció (opcional)</Label>
+                  <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="Detalls addicionals..." />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" variant="tramit" disabled={saving}>
+                  {saving ? 'Desant...' : 'Crear tasca'}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel·lar</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      {/* TAB ABSÈNCIES */}
-      {activeTab === 'absencies' && (
-        <div className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
-            {['', 'pending', 'approved', 'rejected'].map(s => (
-              <button key={s} onClick={() => setFilterStatus(s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  filterStatus === s ? 'bg-tramit-blue text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}>
-                {s === '' ? 'Totes' : STATUS_CONFIG[s]?.label}
-              </button>
-            ))}
-          </div>
-          {filteredAbs.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">
-              <ClipboardList className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Cap absència registrada</p>
-            </CardContent></Card>
-          ) : (
-            <div className="space-y-2">
-              {filteredAbs.map(req => {
-                const p = req.profiles
-                const name = p?.full_name || '—'
-                const color = p?.color || '#64748b'
-                return (
-                  <Card key={req.id}>
-                    <CardContent className="pt-3 pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                          style={{ backgroundColor: color }}>
-                          {getInitials(name)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-sm">{name}</p>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                              {TYPE_LABELS[req.type] || req.type}
-                            </span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_CONFIG[req.status]?.style}`}>
-                              {STATUS_CONFIG[req.status]?.label}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {req.start_date} → {req.end_date}
-                          </p>
-                        </div>
-                        {!isWorker && req.status === 'pending' && (
-                          <div className="flex gap-1">
-                            <Button size="sm" variant="tramit"
-                              onClick={() => handleApprove(req.id, 'approved')}
-                              disabled={approving === req.id}
-                              className="h-7 px-2 text-xs">
-                              Aprovar
-                            </Button>
-                            <Button size="sm" variant="outline"
-                              onClick={() => handleApprove(req.id, 'rejected')}
-                              disabled={approving === req.id}
-                              className="h-7 px-2 text-xs text-red-600 border-red-200">
-                              Rebutjar
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB SALDOS */}
-      {activeTab === 'saldos' && (
-        <div className="space-y-3">
-          {profiles.map(profile => {
-            const bal = balances.find(b => b.user_id === profile.id && b.year === currentYear)
-            const total = bal?.total_days || 0
-            const used = bal?.used_days || 0
-            const pending = bal?.pending_days || 0
-            const remaining = total - used
-            const pct = total > 0 ? Math.round((used / total) * 100) : 0
-            const isEditing = editingBalance === profile.id
-
+      {/* VISTA KANBAN */}
+      {viewMode === 'kanban' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {([
+            { key: 'pending' as const,     tasks: pending },
+            { key: 'in_progress' as const, tasks: inProgress },
+            { key: 'done' as const,        tasks: done },
+          ] as const).map(col => {
+            const conf = STATUS_CONFIG[col.key]
+            const Icon = conf.icon
             return (
-              <Card key={profile.id}>
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                      style={{ backgroundColor: profile.color || '#2272A3' }}>
-                      {getInitials(profile.full_name)}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">{profile.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{ROLE_LABELS[profile.role]}</p>
-                    </div>
-                    <div className="flex items-center gap-3 text-right">
-                      <div>
-                        <p className="text-2xl font-bold text-tramit-blue">{remaining}</p>
-                        <p className="text-[10px] text-muted-foreground">restants</p>
-                      </div>
-                      {!isWorker && (
-                        isEditing ? (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              value={editBalanceValue}
-                              onChange={e => setEditBalanceValue(e.target.value)}
-                              className="h-8 w-16 text-sm text-center"
-                              min="0" max="40"
-                            />
-                            <Button size="sm" variant="tramit"
-                              onClick={() => handleSaveBalance(profile.id, currentYear)}
-                              disabled={saving}
-                              className="h-8 px-2">
-                              <Save className="h-3.5 w-3.5" />
-                            </Button>
-                            <button onClick={() => setEditingBalance(null)}
-                              className="p-1.5 text-muted-foreground hover:text-foreground">
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => { setEditingBalance(profile.id); setEditBalanceValue(String(total)) }}
-                            className="p-1.5 text-muted-foreground hover:text-tramit-blue hover:bg-tramit-blue-light rounded-md transition-colors"
-                            title="Editar total de dies">
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden mb-2">
-                    <div className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: profile.color || '#2272A3' }} />
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Usats: <strong className="text-foreground">{used}</strong></span>
-                    {pending > 0 && <span>Pendents: <strong className="text-amber-500">{pending}</strong></span>}
-                    <span>Total: <strong className="text-foreground">{total}</strong></span>
-                  </div>
-                </CardContent>
-              </Card>
+              <div key={col.key} className={`rounded-xl p-3 ${conf.bg} border ${conf.border}`}>
+                <div className={`flex items-center gap-2 mb-3 ${conf.style}`}>
+                  <Icon className="h-4 w-4" />
+                  <span className="text-sm font-semibold">{conf.label}</span>
+                  <span className="ml-auto text-xs font-bold opacity-60">{col.tasks.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {col.tasks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4 opacity-60">Cap tasca</p>
+                  ) : (
+                    col.tasks.map(t => <TaskCard key={t.id} task={t} />)
+                  )}
+                </div>
+              </div>
             )
           })}
+        </div>
+      )}
+
+      {/* VISTA LLISTA */}
+      {viewMode === 'list' && (
+        <div className="space-y-2">
+          {activeTasks.length === 0 ? (
+            <Card><CardContent className="py-12 text-center text-muted-foreground">
+              <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Cap tasca pendent</p>
+            </CardContent></Card>
+          ) : (
+            activeTasks.map(task => {
+              const conf = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
+              const prioConf = PRIORITY_CONFIG[task.priority]
+              const assignee = task.profiles
+              return (
+                <Card key={task.id}>
+                  <CardContent className="pt-3 pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={conf.style}><conf.icon className="h-4 w-4" /></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
+                            {task.title}
+                          </p>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${prioConf.style}`}>
+                            {prioConf.label}
+                          </span>
+                          {task.clients && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                              {(task.clients as { name: string }).name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          {assignee && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <User className="h-3 w-3" />{(assignee as { full_name: string }).full_name.split(' ')[0]}
+                            </span>
+                          )}
+                          {task.due_date && (
+                            <span className={`text-xs flex items-center gap-1 ${
+                              new Date(task.due_date) < new Date() && task.status !== 'done' ? 'text-red-500' : 'text-muted-foreground'
+                            }`}>
+                              <Calendar className="h-3 w-3" />
+                              {new Date(task.due_date).toLocaleDateString('ca-ES', { day: '2-digit', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        {task.status !== 'done' && (
+                          <button onClick={() => moveTask(task.id, task.status === 'pending' ? 'in_progress' : 'done')}
+                            disabled={movingId === task.id}
+                            className="text-xs px-2 py-1 rounded-lg bg-tramit-blue-light text-tramit-blue hover:bg-tramit-blue hover:text-white transition-colors font-medium">
+                            {task.status === 'pending' ? 'Iniciar' : 'Fet ✓'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })
+          )}
         </div>
       )}
     </div>
