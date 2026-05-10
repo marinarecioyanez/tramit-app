@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { EmailDraft } from './email-draft'
 import { ClientOpportunities } from './client-opportunities'
 import { DocumentOCR } from './document-ocr'
+import { ExpedientsComponent } from './expedients-component'
 
 interface Client {
   id: string
@@ -80,6 +81,20 @@ interface Consent {
   type: string
   granted: boolean
   granted_at: string | null
+}
+
+interface Expedient {
+  id: string
+  client_id: string
+  type: string
+  title: string
+  year: number
+  status: string
+  responsible_id: string | null
+  deadline: string | null
+  notes: string | null
+  created_at: string
+  profiles?: { full_name: string; color: string | null } | null
 }
 
 interface Profile {
@@ -147,7 +162,7 @@ const CLIENT_TYPE_LABELS: Record<string, string> = {
   asociacion: 'Associació',
 }
 
-type Tab = 'activitat' | 'cites' | 'tasques' | 'pressupostos' | 'ia' | 'rgpd'
+type Tab = 'activitat' | 'expedients' | 'cites' | 'tasques' | 'pressupostos' | 'ia' | 'rgpd'
 
 export function ClientDetailClient({
   client,
@@ -157,6 +172,8 @@ export function ClientDetailClient({
   quotes,
   consents,
   profiles,
+  expedients = [],
+  isAdmin = false,
 }: {
   client: Client
   activity: Activity[]
@@ -165,6 +182,8 @@ export function ClientDetailClient({
   quotes: Quote[]
   consents: Consent[]
   profiles: Profile[]
+  expedients?: Expedient[]
+  isAdmin?: boolean
 }) {
   const [activeTab, setActiveTab] = useState<Tab>('activitat')
   const [newNote, setNewNote] = useState('')
@@ -257,6 +276,7 @@ export function ClientDetailClient({
 
   const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: 'activitat', label: 'Activitat', count: activity.length },
+    { id: 'expedients', label: 'Expedients', count: expedients.filter(e => e.status !== 'done' && e.status !== 'cancelled').length },
     { id: 'cites', label: 'Cites', count: appointments.length },
     { id: 'tasques', label: 'Tasques', count: tasks.filter(t => t.status !== 'done').length },
     { id: 'pressupostos', label: 'Pressupostos', count: quotes.length },
@@ -888,6 +908,16 @@ export function ClientDetailClient({
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Tab: Expedients ────────────────────────────────── */}
+          {activeTab === 'expedients' && (
+            <ExpedientsComponent
+              clientId={client.id}
+              expedients={expedients}
+              profiles={profiles}
+              isAdmin={isAdmin}
+            />
           )}
 
           {/* ── Tab: IA ─────────────────────────────────────────── */}
