@@ -13,24 +13,25 @@ export default async function WorkerEquipPage() {
 
   const now = new Date()
   const currentYear = now.getFullYear()
+  const today = now.toISOString().split('T')[0]
 
-  const { data: requests } = await supabase
-    .from('absence_requests')
-    .select('*, profiles!absence_requests_user_id_fkey(full_name, color, email)')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-
-  const { data: balances } = await supabase
-    .from('vacation_balances')
-    .select('*, profiles!vacation_balances_user_id_fkey(full_name, color)')
-    .eq('user_id', user.id)
-    .eq('year', currentYear)
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, color, role, email, phone, active')
-    .eq('active', true)
-    .order('full_name')
+  const [
+    { data: requests },
+    { data: balances },
+    { data: profiles },
+  ] = await Promise.all([
+    supabase.from('absence_requests')
+      .select('*, profiles!absence_requests_user_id_fkey(full_name, color, email)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false }),
+    supabase.from('vacation_balances')
+      .select('*, profiles!vacation_balances_user_id_fkey(full_name, color)')
+      .eq('user_id', user.id)
+      .in('year', [currentYear - 1, currentYear, currentYear + 1]),
+    supabase.from('profiles')
+      .select('id, full_name, color, role, email, phone, active')
+      .order('full_name'),
+  ])
 
   return (
     <EquipClient
@@ -38,6 +39,7 @@ export default async function WorkerEquipPage() {
       balances={balances || []}
       profiles={profiles || []}
       currentYear={currentYear}
+      today={today}
       isWorker={true}
       currentUserId={user.id}
     />
