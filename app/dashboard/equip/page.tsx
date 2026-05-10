@@ -42,7 +42,6 @@ export default async function EquipPage() {
       balances={balances || []}
       profiles={profiles || []}
       currentYear={currentYear}
-      today={today}
     />
   )
 }
