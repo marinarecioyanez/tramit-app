@@ -9,8 +9,7 @@ import { Label } from '@/components/ui/label'
 import {
   Plus, X, CheckCircle, Clock, AlertTriangle,
   Circle, ArrowRight, Calendar, User, Timer,
-  Kanban, List, ChevronDown, ChevronUp,
-  Zap, FileText
+  Kanban, List, Trash2, Zap,
 } from 'lucide-react'
 
 interface Task {
@@ -50,10 +49,10 @@ interface Template {
 }
 
 const STATUS_CONFIG = {
-  pending:    { label: 'Pendent',  icon: Circle,       style: 'text-slate-500',  bg: 'bg-slate-50 dark:bg-slate-800/50',  border: 'border-slate-200 dark:border-slate-700' },
-  in_progress:{ label: 'En curs',  icon: ArrowRight,   style: 'text-blue-500',   bg: 'bg-blue-50 dark:bg-blue-900/20',    border: 'border-blue-200 dark:border-blue-800' },
-  done:       { label: 'Fet',      icon: CheckCircle,  style: 'text-green-500',  bg: 'bg-green-50 dark:bg-green-900/20',  border: 'border-green-200 dark:border-green-800' },
-  archived:   { label: 'Arxivada', icon: Circle,       style: 'text-muted-foreground', bg: 'bg-muted', border: 'border-border' },
+  pending:     { label: 'Pendent',  icon: Circle,      style: 'text-slate-500',       bg: 'bg-slate-50 dark:bg-slate-800/50',  border: 'border-slate-200 dark:border-slate-700' },
+  in_progress: { label: 'En curs',  icon: ArrowRight,  style: 'text-blue-500',        bg: 'bg-blue-50 dark:bg-blue-900/20',    border: 'border-blue-200 dark:border-blue-800' },
+  done:        { label: 'Fet',      icon: CheckCircle, style: 'text-green-500',       bg: 'bg-green-50 dark:bg-green-900/20',  border: 'border-green-200 dark:border-green-800' },
+  archived:    { label: 'Arxivada', icon: Circle,      style: 'text-muted-foreground', bg: 'bg-muted',                          border: 'border-border' },
 }
 
 const PRIORITY_CONFIG = {
@@ -119,7 +118,6 @@ export function TasquesClient({
 
   const archivedCount = tasks.filter(t => t.status === 'archived').length
 
-  // Temps total per tasca
   function getTaskTime(taskId: string): number {
     return timeEntries.filter(e => e.task_id === taskId).reduce((s, e) => s + e.minutes, 0)
   }
@@ -165,18 +163,25 @@ export function TasquesClient({
     }
   }
 
-  <button onClick={() => changeStatus(task.id, task.status === 'archived' ? 'pending' : 'archived')}
-              disabled={loading === task.id}
-              className="px-2 py-1 rounded text-xs text-muted-foreground hover:bg-muted transition-all"
-              title={task.status === 'archived' ? 'Desarxivar' : 'Arxivar'}>
-              {task.status === 'archived' ? '↩' : '📁'}
-            </button>
-            <button onClick={() => handleDelete(task.id)}
-              disabled={loading === task.id}
-              className="px-2 py-1 rounded text-xs text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-all"
-              title="Esborrar tasca">
-              <X className="h-3 w-3" />
-            </button>
+  async function changeStatus(id: string, status: Task['status']) {
+    setLoading(id)
+    await supabase.from('tasks').update({
+      status,
+      done_at: status === 'done' ? new Date().toISOString() : null,
+    }).eq('id', id)
+    setTasks(prev => prev.map(t => t.id === id
+      ? { ...t, status, done_at: status === 'done' ? new Date().toISOString() : null }
+      : t
+    ))
+    setLoading(null)
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Segur que vols esborrar aquesta tasca? No es pot desfer.')) return
+    setLoading(id)
+    await supabase.from('tasks').delete().eq('id', id)
+    setTasks(prev => prev.filter(t => t.id !== id))
+    setLoading(null)
   }
 
   async function logTime(taskId: string, clientId: string | null) {
@@ -259,7 +264,6 @@ export function TasquesClient({
             )}
           </div>
 
-          {/* Temps registrat */}
           {(taskTime > 0 || task.estimated_minutes) && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Timer className="h-3 w-3" />
@@ -276,27 +280,14 @@ export function TasquesClient({
             </div>
           )}
 
-          {/* Timer per registrar temps */}
           {isShowingTimer && (
             <div className="flex gap-1.5 items-center pt-1 border-t border-border flex-wrap">
-              <Input
-                type="number"
-                value={timerMinutes}
-                onChange={e => setTimerMinutes(e.target.value)}
-                placeholder="Minuts"
-                className="h-7 w-20 text-xs"
-                min="1"
-                autoFocus
-              />
-              <Input
-                value={timerDesc}
-                onChange={e => setTimerDesc(e.target.value)}
-                placeholder="Nota (opcional)"
-                className="h-7 flex-1 text-xs min-w-[80px]"
-              />
+              <Input type="number" value={timerMinutes} onChange={e => setTimerMinutes(e.target.value)}
+                placeholder="Minuts" className="h-7 w-20 text-xs" min="1" autoFocus />
+              <Input value={timerDesc} onChange={e => setTimerDesc(e.target.value)}
+                placeholder="Nota (opcional)" className="h-7 flex-1 text-xs min-w-[80px]" />
               <Button size="sm" variant="tramit" className="h-7 px-2 text-xs"
-                onClick={() => logTime(task.id, task.client_id)}
-                disabled={saving || !timerMinutes}>
+                onClick={() => logTime(task.id, task.client_id)} disabled={saving || !timerMinutes}>
                 ✓
               </Button>
               <button onClick={() => setShowTimer(null)} className="text-muted-foreground hover:text-foreground p-1">
@@ -305,7 +296,7 @@ export function TasquesClient({
             </div>
           )}
 
-          {/* Botons d'estat + temps */}
+          {/* Botons d'estat + arxivar + esborrar */}
           <div className="flex gap-1 pt-1 border-t border-border flex-wrap">
             {(['pending', 'in_progress', 'done'] as const).map(s => (
               <button key={s} onClick={() => changeStatus(task.id, s)}
@@ -329,6 +320,12 @@ export function TasquesClient({
               title={task.status === 'archived' ? 'Desarxivar' : 'Arxivar'}>
               {task.status === 'archived' ? '↩' : '📁'}
             </button>
+            <button onClick={() => handleDelete(task.id)}
+              disabled={loading === task.id}
+              className="px-2 py-1 rounded text-xs text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-all"
+              title="Esborrar tasca">
+              <Trash2 className="h-3 w-3" />
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -349,7 +346,6 @@ export function TasquesClient({
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Selector de vista */}
           <div className="flex gap-1 bg-muted p-1 rounded-lg">
             <button onClick={() => setViewMode('kanban')}
               className={`p-1.5 rounded-md transition-all ${viewMode === 'kanban' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
@@ -360,7 +356,6 @@ export function TasquesClient({
               <List className="h-4 w-4" />
             </button>
           </div>
-          {/* Plantilles */}
           {templates.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setShowTemplates(!showTemplates)} className="flex items-center gap-1.5">
               <Zap className="h-3.5 w-3.5" />Plantilles
@@ -421,7 +416,9 @@ export function TasquesClient({
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Nova tasca</CardTitle>
-              <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground p-1"><X className="h-4 w-4" /></button>
+              <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground p-1">
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </CardHeader>
           <CardContent>
@@ -512,7 +509,6 @@ export function TasquesClient({
             const config = STATUS_CONFIG[col.status]
             const Icon = config.icon
             const colTasks = filtered.filter(t => t.status === col.status)
-
             return (
               <div key={col.status} className="space-y-3">
                 <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${config.bg} ${config.border}`}>
@@ -595,6 +591,12 @@ export function TasquesClient({
                         className={`p-1.5 rounded-md transition-colors ${showTimer === task.id ? 'bg-tramit-blue text-white' : 'text-muted-foreground hover:bg-muted'}`}>
                         <Timer className="h-3.5 w-3.5" />
                       </button>
+                      <button onClick={() => handleDelete(task.id)}
+                        disabled={loading === task.id}
+                        className="p-1.5 rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-colors"
+                        title="Esborrar tasca">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
                   {showTimer === task.id && (
@@ -607,7 +609,9 @@ export function TasquesClient({
                         onClick={() => logTime(task.id, task.client_id)} disabled={saving || !timerMinutes}>
                         Desar
                       </Button>
-                      <button onClick={() => setShowTimer(null)} className="text-muted-foreground p-1"><X className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setShowTimer(null)} className="text-muted-foreground p-1">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   )}
                 </CardContent>
@@ -639,10 +643,18 @@ export function TasquesClient({
                           {clientName && <span className="text-xs text-muted-foreground">· {clientName}</span>}
                         </div>
                       </div>
-                      <button onClick={() => changeStatus(task.id, 'pending')}
-                        className="text-xs text-tramit-blue hover:underline shrink-0">
-                        Desarxivar
-                      </button>
+                      <div className="flex gap-2">
+                        <button onClick={() => changeStatus(task.id, 'pending')}
+                          className="text-xs text-tramit-blue hover:underline shrink-0">
+                          Desarxivar
+                        </button>
+                        <button onClick={() => handleDelete(task.id)}
+                          disabled={loading === task.id}
+                          className="p-1 rounded text-red-400 hover:text-red-600 transition-colors"
+                          title="Esborrar">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
