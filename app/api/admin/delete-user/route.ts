@@ -14,8 +14,21 @@ export async function POST(request: Request) {
     }
 
     const supabase = createServiceClient()
-    const { error } = await supabase.auth.admin.deleteUser(userId)
 
+    // 1. Esborrar relacions (en ordre per evitar errors de foreign key)
+    await supabase.from('appointment_attendees').delete().eq('user_id', userId)
+    await supabase.from('appointments').delete().eq('main_attendee_id', userId)
+    await supabase.from('appointments').delete().eq('created_by', userId)
+    await supabase.from('absence_requests').delete().eq('user_id', userId)
+    await supabase.from('vacation_balances').delete().eq('user_id', userId)
+    await supabase.from('notifications').delete().eq('user_id', userId)
+    await supabase.from('audit_logs').delete().eq('user_id', userId)
+
+    // 2. Esborrar perfil
+    await supabase.from('profiles').delete().eq('id', userId)
+
+    // 3. Esborrar d'Auth
+    const { error } = await supabase.auth.admin.deleteUser(userId)
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
