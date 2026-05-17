@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { AdminClient } from '@/components/features/admin-client'
-import { SettingsClient } from '@/components/features/settings-client'
 
 export const metadata = { title: 'Administració — Tràmit Economistes' }
 
@@ -35,31 +34,14 @@ export default async function AdministracioPage() {
   ])
 
   return (
-    <div className="space-y-8">
-      <AdminClient
-        profiles={profiles || []}
-        settings={settings || []}
-        holidays={holidays || []}
-        closures={closures || []}
-        auditLogs={auditLogs || []}
-        accessLogs={accessLogs || []}
-        currentYear={currentYear}
-      />
-
-      {/* Secció Calendari — festius i tancaments */}
-      <div className="border-t pt-8">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold">Calendari laboral</h2>
-          <p className="text-muted-foreground mt-1">
-            Gestiona els festius i els tancaments d&apos;empresa per any
-          </p>
-        </div>
-        <SettingsClient
-          settings={settings || []}
-          holidays={holidays || []}
-          closures={closures || []}
-        />
-      </div>
-    </div>
+    <AdminClient
+      profiles={profiles || []}
+      settings={settings || []}
+      holidays={holidays || []}
+      closures={closures || []}
+      auditLogs={auditLogs || []}
+      accessLogs={accessLogs || []}
+      currentYear={currentYear}
+    />
   )
 }
