@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     // 2. Inserir perfil a profiles (no update, insert)
     const { error: profileError } = await supabase
       .from('profiles')
-      .insert({
+      .upsert({
         id: authData.user.id,
         email,
         full_name,
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         phone: phone || null,
         color: color || '#2272A3',
         active: true,
-      })
+      }, { onConflict: 'id' })
 
     if (profileError) {
       // Si falla el perfil, esborrar l'usuari d'Auth per no deixar-lo a mitges
