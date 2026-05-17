@@ -165,14 +165,18 @@ export function TasquesClient({
     }
   }
 
-  async function changeStatus(id: string, status: Task['status']) {
-    setLoading(id)
-    await supabase.from('tasks').update({
-      status,
-      done_at: status === 'done' ? new Date().toISOString() : null,
-    }).eq('id', id)
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status, done_at: status === 'done' ? new Date().toISOString() : null } : t))
-    setLoading(null)
+  <button onClick={() => changeStatus(task.id, task.status === 'archived' ? 'pending' : 'archived')}
+              disabled={loading === task.id}
+              className="px-2 py-1 rounded text-xs text-muted-foreground hover:bg-muted transition-all"
+              title={task.status === 'archived' ? 'Desarxivar' : 'Arxivar'}>
+              {task.status === 'archived' ? '↩' : '📁'}
+            </button>
+            <button onClick={() => handleDelete(task.id)}
+              disabled={loading === task.id}
+              className="px-2 py-1 rounded text-xs text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-all"
+              title="Esborrar tasca">
+              <X className="h-3 w-3" />
+            </button>
   }
 
   async function logTime(taskId: string, clientId: string | null) {
