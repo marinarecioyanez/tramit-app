@@ -16,6 +16,7 @@ export async function POST(request: Request) {
 
     const supabase = createServiceClient()
 
+    // 1. Crear usuari a Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -27,22 +28,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: authError.message }, { status: 400 })
     }
 
+    // 2. Inserir perfil a profiles (no update, insert)
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({
+      .insert({
+        id: authData.user.id,
+        email,
         full_name,
         role,
         phone: phone || null,
         color: color || '#2272A3',
         active: true,
       })
-      .eq('id', authData.user.id)
 
     if (profileError) {
+      // Si falla el perfil, esborrar l'usuari d'Auth per no deixar-lo a mitges
+      await supabase.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json({ error: profileError.message }, { status: 400 })
     }
 
-    // Enviar email de benvinguda
+    // 3. Enviar email de benvinguda
     await sendEmail(emailBenvinguda({
       workerEmail: email,
       workerName: full_name,
