@@ -32,14 +32,11 @@ const adminNavItems: NavItem[] = [
 ]
 
 const workerNavItems: NavItem[] = [
-  { label: 'Inici',           href: '/worker',               icon: Home },
-  { label: 'Missatges',       href: '/worker/missatges',     icon: MessageSquare },
-  { label: 'Agenda',          href: '/worker/agenda',        icon: Calendar },
-  { label: 'Vacances',        href: '/worker/vacances',      icon: Umbrella },
-  { label: 'Equip',           href: '/worker/equip',         icon: Users },
-  { label: 'Tasques',         href: '/worker/tasques',       icon: CheckSquare },
-  { label: 'Assessor Tràmit', href: '/worker/assessor',      icon: BookOpen },
-  { label: 'El meu perfil',   href: '/worker/perfil',        icon: UserCircle },
+  { label: 'Inici',     href: '/worker',           icon: Home },
+  { label: 'Missatges', href: '/worker/missatges',  icon: MessageSquare },
+  { label: 'Agenda',    href: '/worker/agenda',     icon: Calendar },
+  { label: 'Equip',     href: '/worker/equip',      icon: Users },
+  { label: 'El meu perfil', href: '/worker/perfil', icon: UserCircle },
 ]
 
 interface SidebarProps {
