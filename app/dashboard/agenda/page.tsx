@@ -9,8 +9,8 @@ export const metadata = { title: 'Agenda — Tràmit Economistes' }
 export default async function AgendaPage() {
   const supabase = createClient()
   const now = new Date()
-  const { data: { user } } = await supabase.auth.getUser()
 
+  const { data: { user } } = await supabase.auth.getUser()
   const { data: currentProfile } = await supabase
     .from('profiles')
     .select('role')
@@ -30,7 +30,6 @@ export default async function AgendaPage() {
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, full_name, color, role')
-    .eq('active', true)
     .order('full_name')
 
   const { data: holidays } = await supabase
