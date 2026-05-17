@@ -66,9 +66,7 @@ export function VacancesAdminClient({
   const [loading, setLoading] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [editingBalance, setEditingBalance] = useState<string | null>(null)
-  const [balanceEdits, setBalanceEdits] = useState
-    Record<string, { total_days: number; used_days: number; note: string }>
-  >({})
+  const [balanceEdits, setBalanceEdits] = useState<Record<string, { total_days: number; used_days: number; note: string }>>({})
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
 
   const supabase = createClient()
