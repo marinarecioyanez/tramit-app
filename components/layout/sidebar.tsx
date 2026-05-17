@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Calendar, Umbrella, Users,
   BarChart3, Settings, Home, LogOut,
   UserCircle, BookOpen, MessageSquare,
-  CheckSquare, FileText, Shield,
+  CheckSquare, FileText,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { TramitLogo } from './logo'
@@ -19,26 +19,27 @@ interface NavItem {
 }
 
 const adminNavItems: NavItem[] = [
-  { label: 'Tauler',        href: '/dashboard',              icon: LayoutDashboard },
-  { label: 'Missatges',     href: '/dashboard/missatges',    icon: MessageSquare },
-  { label: 'Agenda',        href: '/dashboard/agenda',       icon: Calendar },
-  { label: 'Equip',         href: '/dashboard/equip',        icon: Umbrella },
-  { label: 'Clients',       href: '/dashboard/clients',      icon: Users },
-  { label: 'Tasques',       href: '/dashboard/tasques',      icon: CheckSquare },
-  { label: 'Documents',     href: '/dashboard/documents',    icon: FileText },
-  { label: 'Informes',      href: '/dashboard/informes',     icon: BarChart3 },
-  { label: 'Assessor Tràmit', href: '/dashboard/assessor',  icon: BookOpen },
-  { label: 'Administració', href: '/dashboard/administracio', icon: Settings },
+  { label: 'Tauler',          href: '/dashboard',                icon: LayoutDashboard },
+  { label: 'Missatges',       href: '/dashboard/missatges',      icon: MessageSquare },
+  { label: 'Agenda',          href: '/dashboard/agenda',         icon: Calendar },
+  { label: 'Equip',           href: '/dashboard/equip',          icon: Umbrella },
+  { label: 'Clients',         href: '/dashboard/clients',        icon: Users },
+  { label: 'Tasques',         href: '/dashboard/tasques',        icon: CheckSquare },
+  { label: 'Documents',       href: '/dashboard/documents',      icon: FileText },
+  { label: 'Informes',        href: '/dashboard/informes',       icon: BarChart3 },
+  { label: 'Assessor Tràmit', href: '/dashboard/assessor',       icon: BookOpen },
+  { label: 'Administració',   href: '/dashboard/administracio',  icon: Settings },
 ]
 
 const workerNavItems: NavItem[] = [
-  { label: 'Inici',           href: '/worker',                      icon: Home },
-  { label: 'Missatges',       href: '/worker/missatges',            icon: MessageSquare },
-  { label: 'Agenda',          href: '/worker/agenda',               icon: Calendar },
-  { label: 'Equip',           href: '/worker/equip',                icon: Umbrella },
-  { label: 'Tasques',         href: '/worker/tasques',              icon: CheckSquare },
-  { label: 'Assessor Tràmit', href: '/worker/assessor',            icon: BookOpen },
-  { label: 'El meu perfil',   href: '/worker/perfil',               icon: UserCircle },
+  { label: 'Inici',           href: '/worker',               icon: Home },
+  { label: 'Missatges',       href: '/worker/missatges',     icon: MessageSquare },
+  { label: 'Agenda',          href: '/worker/agenda',        icon: Calendar },
+  { label: 'Vacances',        href: '/worker/vacances',      icon: Umbrella },
+  { label: 'Equip',           href: '/worker/equip',         icon: Users },
+  { label: 'Tasques',         href: '/worker/tasques',       icon: CheckSquare },
+  { label: 'Assessor Tràmit', href: '/worker/assessor',      icon: BookOpen },
+  { label: 'El meu perfil',   href: '/worker/perfil',        icon: UserCircle },
 ]
 
 interface SidebarProps {
