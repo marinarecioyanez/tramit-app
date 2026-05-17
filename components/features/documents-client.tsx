@@ -10,7 +10,7 @@ import { DocumentOCR } from './document-ocr'
 import {
   FileText, Plus, X, Search, Send, Clock,
   CheckCircle, AlertTriangle, ExternalLink,
-  Copy, Users, FolderOpen, Sparkles, Link2
+  Copy, Users, FolderOpen, Sparkles, Link2, Archive,
 } from 'lucide-react'
 
 interface Document {
@@ -47,10 +47,11 @@ const DOC_TYPES = [
 ]
 
 const STATUS_CONFIG: Record<string, { label: string; style: string; icon: React.ComponentType<{ className?: string }> }> = {
-  pending:   { label: 'Pendent',   style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: Clock },
-  partial:   { label: 'Parcial',   style: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: FileText },
-  completed: { label: 'Completat', style: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: CheckCircle },
-  expired:   { label: 'Caducat',   style: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', icon: AlertTriangle },
+  pending:   { label: 'Pendent',   style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',   icon: Clock },
+  partial:   { label: 'Parcial',   style: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',       icon: FileText },
+  completed: { label: 'Completat', style: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',   icon: CheckCircle },
+  expired:   { label: 'Caducat',   style: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',      icon: AlertTriangle },
+  archived:  { label: 'Arxivada',  style: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500',      icon: Archive },
 }
 
 type TabId = 'historial' | 'sollicituds' | 'ocr'
@@ -77,6 +78,7 @@ export function DocumentsClient({
   const [search, setSearch] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
   const [form, setForm] = useState({
     client_id: '',
     title: '',
@@ -96,14 +98,15 @@ export function DocumentsClient({
     )
   }, [documents, search])
 
-  const filteredRequests = useMemo(() => {
-    if (!search) return requests
+  const visibleRequests = useMemo(() => {
+    let result = showArchived ? requests : requests.filter(r => r.status !== 'archived')
+    if (!search) return result
     const q = search.toLowerCase()
-    return requests.filter(r =>
+    return result.filter(r =>
       r.title.toLowerCase().includes(q) ||
       (r.clients as { name: string } | null)?.name.toLowerCase().includes(q)
     )
-  }, [requests, search])
+  }, [requests, search, showArchived])
 
   function toggleDocType(type: string) {
     setForm(f => ({
@@ -141,6 +144,14 @@ export function DocumentsClient({
     }
   }
 
+  async function handleArchiveRequest(id: string) {
+    if (!confirm('Arxivar aquesta sol·licitud?')) return
+    await supabase.from('document_requests').update({ status: 'archived' }).eq('id', id)
+    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'archived' } : r))
+    setMsg({ ok: true, text: 'Sol·licitud arxivada.' })
+    setTimeout(() => setMsg(null), 2000)
+  }
+
   function getPortalUrl(token: string): string {
     return `${window.location.origin}/portal/doc/${token}`
   }
@@ -156,6 +167,7 @@ export function DocumentsClient({
   }
 
   const pendingCount = requests.filter(r => r.status === 'pending').length
+  const archivedCount = requests.filter(r => r.status === 'archived').length
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -269,9 +281,9 @@ export function DocumentsClient({
       {/* Tabs */}
       <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit flex-wrap">
         {([
-          { id: 'historial' as TabId, label: 'Historial', icon: <FolderOpen className="h-3.5 w-3.5" /> },
-          { id: 'sollicituds' as TabId, label: 'Sol·licituds', icon: <Send className="h-3.5 w-3.5" />, count: pendingCount },
-          { id: 'ocr' as TabId, label: '✨ Anàlisi IA', icon: <Sparkles className="h-3.5 w-3.5" /> },
+          { id: 'historial' as TabId,    label: 'Historial',    icon: <FolderOpen className="h-3.5 w-3.5" /> },
+          { id: 'sollicituds' as TabId,  label: 'Sol·licituds', icon: <Send className="h-3.5 w-3.5" />, count: pendingCount },
+          { id: 'ocr' as TabId,          label: '✨ Anàlisi IA', icon: <Sparkles className="h-3.5 w-3.5" /> },
         ]).map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
@@ -341,27 +353,38 @@ export function DocumentsClient({
       {/* TAB: SOL·LICITUDS */}
       {activeTab === 'sollicituds' && (
         <div className="space-y-3">
-          {filteredRequests.length === 0 ? (
+          {/* Botó mostrar arxivades */}
+          {archivedCount > 0 && (
+            <button onClick={() => setShowArchived(!showArchived)}
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5">
+              <Archive className="h-3.5 w-3.5" />
+              {showArchived ? 'Amagar arxivades' : `Mostrar arxivades (${archivedCount})`}
+            </button>
+          )}
+
+          {visibleRequests.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground">
               <Send className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p>Cap sol·licitud enviada</p>
               {isAdmin && (
                 <button onClick={() => setShowForm(true)}
-                  className="text-xs text-tramit-blue hover:underline mt-2 block">
+                  className="text-xs text-tramit-blue hover:underline mt-2 block mx-auto">
                   Crear la primera sol·licitud
                 </button>
               )}
             </CardContent></Card>
-          ) : filteredRequests.map(req => {
+          ) : visibleRequests.map(req => {
             const clientName = (req.clients as { name: string } | null)?.name
             const creatorName = (req.profiles as { full_name: string } | null)?.full_name
             const daysLeft = getDaysLeft(req.expires_at)
             const isExpired = daysLeft <= 0
-            const statusConf = STATUS_CONFIG[isExpired && req.status === 'pending' ? 'expired' : req.status] || STATUS_CONFIG.pending
+            const isArchived = req.status === 'archived'
+            const statusKey = isArchived ? 'archived' : isExpired && req.status === 'pending' ? 'expired' : req.status
+            const statusConf = STATUS_CONFIG[statusKey] || STATUS_CONFIG.pending
             const StatusIcon = statusConf.icon
 
             return (
-              <Card key={req.id} className={req.status === 'pending' && !isExpired ? 'border-amber-200 dark:border-amber-800' : ''}>
+              <Card key={req.id} className={`${req.status === 'pending' && !isExpired ? 'border-amber-200 dark:border-amber-800' : ''} ${isArchived ? 'opacity-60' : ''}`}>
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
@@ -386,34 +409,47 @@ export function DocumentsClient({
                       </div>
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
                         {creatorName && <span>Creat per {creatorName.split(' ')[0]}</span>}
-                        <span>·</span>
-                        {isExpired ? (
-                          <span className="text-red-500">Link caducat</span>
-                        ) : (
-                          <span className={daysLeft <= 5 ? 'text-amber-600' : ''}>
-                            Caduca en {daysLeft} dies
-                          </span>
+                        {!isArchived && (
+                          <>
+                            <span>·</span>
+                            {isExpired ? (
+                              <span className="text-red-500">Link caducat</span>
+                            ) : (
+                              <span className={daysLeft <= 5 ? 'text-amber-600' : ''}>
+                                Caduca en {daysLeft} dies
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
 
                     {/* Botons */}
-                    <div className="flex flex-col gap-1.5 shrink-0">
-                      <button onClick={() => copyLink(req.token)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                          copied === req.token
-                            ? 'bg-green-50 text-green-700 border-green-200'
-                            : 'border-border text-muted-foreground hover:border-tramit-blue hover:text-tramit-blue'
-                        }`}>
-                        {copied === req.token ? <CheckCircle className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                        {copied === req.token ? 'Copiat!' : 'Copiar link'}
-                      </button>
-                      <a href={getPortalUrl(req.token)} target="_blank" rel="noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:border-tramit-blue hover:text-tramit-blue transition-colors">
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Veure portal
-                      </a>
-                    </div>
+                    {!isArchived && (
+                      <div className="flex flex-col gap-1.5 shrink-0">
+                        <button onClick={() => copyLink(req.token)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                            copied === req.token
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'border-border text-muted-foreground hover:border-tramit-blue hover:text-tramit-blue'
+                          }`}>
+                          {copied === req.token ? <CheckCircle className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copied === req.token ? 'Copiat!' : 'Copiar link'}
+                        </button>
+                        <a href={getPortalUrl(req.token)} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:border-tramit-blue hover:text-tramit-blue transition-colors">
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Veure portal
+                        </a>
+                        {isAdmin && (
+                          <button onClick={() => handleArchiveRequest(req.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:border-red-300 hover:text-red-500 transition-colors">
+                            <Archive className="h-3.5 w-3.5" />
+                            Arxivar
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {req.description && (
