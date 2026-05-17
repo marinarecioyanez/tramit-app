@@ -20,7 +20,7 @@ interface ProfileData {
   phone: string | null; color: string | null; active: boolean
 }
 interface Setting { id: string; key: string; value: string; description: string | null; category: string | null }
-interface Holiday { id: string; date: string; name: string; year: number }
+interface Holiday { id: string; date: string; name: string; calendar_type: string; year: number }
 interface Closure { id: string; date: string; name: string; year: number; deducts_vacation: boolean }
 interface AuditLog {
   id: string; action: string; entity_type: string | null; created_at: string
