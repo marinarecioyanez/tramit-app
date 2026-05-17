@@ -17,37 +17,53 @@ export default async function AgendaPage() {
     .eq('id', user!.id)
     .single()
 
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 3, 0).toISOString()
+  const startRange = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
+  const endRange = new Date(now.getFullYear(), now.getMonth() + 3, 0).toISOString()
 
-  const { data: absences } = await supabase
-    .from('absence_requests')
-    .select('*, profiles!absence_requests_user_id_fkey(full_name, color)')
-    .eq('status', 'approved')
-    .gte('end_date', startOfMonth.split('T')[0])
-    .lte('start_date', endOfMonth.split('T')[0])
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, color, role')
-    .order('full_name')
-
-  const { data: holidays } = await supabase
-    .from('holidays')
-    .select('date, name')
-    .eq('year', now.getFullYear())
-
-  const { data: closures } = await supabase
-    .from('company_closures')
-    .select('date, name')
-    .eq('year', now.getFullYear())
-
-  const { data: fiscalDeadlines } = await supabase
-    .from('fiscal_deadlines')
-    .select('*')
-    .gte('date', now.toISOString().split('T')[0])
-    .lte('date', new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().split('T')[0])
-    .order('date', { ascending: true })
+  const [
+    { data: absences },
+    { data: profiles },
+    { data: holidays },
+    { data: closures },
+    { data: fiscalDeadlines },
+    { data: appointments },
+  ] = await Promise.all([
+    supabase
+      .from('absence_requests')
+      .select('*, profiles!absence_requests_user_id_fkey(full_name, color)')
+      .eq('status', 'approved')
+      .gte('end_date', startRange.split('T')[0])
+      .lte('start_date', endRange.split('T')[0]),
+    supabase
+      .from('profiles')
+      .select('id, full_name, color, role')
+      .order('full_name'),
+    supabase
+      .from('holidays')
+      .select('date, name')
+      .eq('year', now.getFullYear()),
+    supabase
+      .from('company_closures')
+      .select('date, name')
+      .eq('year', now.getFullYear()),
+    supabase
+      .from('fiscal_deadlines')
+      .select('*')
+      .gte('date', now.toISOString().split('T')[0])
+      .lte('date', new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().split('T')[0])
+      .order('date', { ascending: true }),
+    supabase
+      .from('appointments')
+      .select(`
+        *,
+        profiles!appointments_main_attendee_id_fkey(full_name, color),
+        clients(name),
+        appointment_attendees(user_id, is_main, status, profiles(full_name, color))
+      `)
+      .gte('start_time', startRange)
+      .lte('start_time', endRange)
+      .order('start_time', { ascending: true }),
+  ])
 
   return (
     <div className="space-y-4">
@@ -70,6 +86,7 @@ export default async function AgendaPage() {
         currentUserId={user!.id}
         currentUserRole={currentProfile?.role || 'admin'}
         fiscalDeadlines={fiscalDeadlines || []}
+        appointments={appointments || []}
       />
     </div>
   )
