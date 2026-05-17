@@ -19,18 +19,29 @@ export default async function WorkerEquipPage() {
     { data: requests },
     { data: balances },
     { data: profiles },
+    { data: holidays },
+    { data: closures },
   ] = await Promise.all([
-    supabase.from('absence_requests')
+    // Vacances i absències PRÒPIES del treballador
+    supabase
+      .from('absence_requests')
       .select('*, profiles!absence_requests_user_id_fkey(full_name, color, email)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
-    supabase.from('vacation_balances')
+    // Saldo PROPI
+    supabase
+      .from('vacation_balances')
       .select('*, profiles!vacation_balances_user_id_fkey(full_name, color)')
       .eq('user_id', user.id)
       .in('year', [currentYear - 1, currentYear, currentYear + 1]),
-    supabase.from('profiles')
+    // TOTS els perfils (per veure l'equip complet)
+    supabase
+      .from('profiles')
       .select('id, full_name, color, role, email, phone, active')
+      .eq('active', true)
       .order('full_name'),
+    supabase.from('holidays').select('date').eq('year', currentYear),
+    supabase.from('company_closures').select('date'),
   ])
 
   return (
@@ -38,6 +49,8 @@ export default async function WorkerEquipPage() {
       requests={requests || []}
       balances={balances || []}
       profiles={profiles || []}
+      holidays={holidays?.map(h => h.date) || []}
+      closures={closures?.map(c => c.date) || []}
       currentYear={currentYear}
       today={today}
       isWorker={true}
