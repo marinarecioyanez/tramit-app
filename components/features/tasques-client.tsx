@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { DocumentsClient } from './documents-client'
 import {
   Plus, X, CheckCircle, Clock, AlertTriangle,
   Circle, ArrowRight, Calendar, User, Timer,
-  Kanban, List, Trash2, Zap,
+  Kanban, List, Trash2, Zap, FileText,
 } from 'lucide-react'
 
 interface Task {
@@ -49,9 +50,9 @@ interface Template {
 }
 
 const STATUS_CONFIG = {
-  pending:     { label: 'Pendent',  icon: Circle,      style: 'text-slate-500',       bg: 'bg-slate-50 dark:bg-slate-800/50',  border: 'border-slate-200 dark:border-slate-700' },
-  in_progress: { label: 'En curs',  icon: ArrowRight,  style: 'text-blue-500',        bg: 'bg-blue-50 dark:bg-blue-900/20',    border: 'border-blue-200 dark:border-blue-800' },
-  done:        { label: 'Fet',      icon: CheckCircle, style: 'text-green-500',       bg: 'bg-green-50 dark:bg-green-900/20',  border: 'border-green-200 dark:border-green-800' },
+  pending:     { label: 'Pendent',  icon: Circle,      style: 'text-slate-500',        bg: 'bg-slate-50 dark:bg-slate-800/50',  border: 'border-slate-200 dark:border-slate-700' },
+  in_progress: { label: 'En curs',  icon: ArrowRight,  style: 'text-blue-500',         bg: 'bg-blue-50 dark:bg-blue-900/20',    border: 'border-blue-200 dark:border-blue-800' },
+  done:        { label: 'Fet',      icon: CheckCircle, style: 'text-green-500',        bg: 'bg-green-50 dark:bg-green-900/20',  border: 'border-green-200 dark:border-green-800' },
   archived:    { label: 'Arxivada', icon: Circle,      style: 'text-muted-foreground', bg: 'bg-muted',                          border: 'border-border' },
 }
 
@@ -98,6 +99,7 @@ export function TasquesClient({
   docRequests?: unknown[]
   isAdmin?: boolean
 }) {
+  const [mainTab, setMainTab] = useState<'tasques' | 'documents'>('tasques')
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(initialTimeEntries)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
@@ -164,9 +166,7 @@ export function TasquesClient({
       .insert(inserts)
       .select('*, profiles!tasks_assigned_to_fkey(full_name, color), clients(name)')
     setSaving(false)
-    if (!error && data) {
-      setTasks(prev => [...data, ...prev])
-    }
+    if (!error && data) setTasks(prev => [...data, ...prev])
   }
 
   async function changeStatus(id: string, status: Task['status']) {
@@ -302,7 +302,6 @@ export function TasquesClient({
             </div>
           )}
 
-          {/* Botons d'estat + arxivar + esborrar */}
           <div className="flex gap-1 pt-1 border-t border-border flex-wrap">
             {(['pending', 'in_progress', 'done'] as const).map(s => (
               <button key={s} onClick={() => changeStatus(task.id, s)}
@@ -340,334 +339,368 @@ export function TasquesClient({
 
   return (
     <div className="space-y-5 max-w-6xl">
-      {/* Capçalera */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Tasques</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {stats.pending} pendents · {stats.inProgress} en curs · {stats.done} fetes
-            {stats.totalMinutes > 0 && (
-              <span className="ml-2 text-tramit-blue font-medium">· {formatMinutes(stats.totalMinutes)} registrades</span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-1 bg-muted p-1 rounded-lg">
-            <button onClick={() => setViewMode('kanban')}
-              className={`p-1.5 rounded-md transition-all ${viewMode === 'kanban' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
-              <Kanban className="h-4 w-4" />
-            </button>
-            <button onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
-              <List className="h-4 w-4" />
-            </button>
-          </div>
-          {templates.length > 0 && (
-            <Button variant="outline" size="sm" onClick={() => setShowTemplates(!showTemplates)} className="flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5" />Plantilles
-            </Button>
-          )}
-          <Button variant="tramit" size="sm" onClick={() => setShowForm(true)} className="flex items-center gap-1.5">
-            <Plus className="h-3.5 w-3.5" />Nova tasca
-          </Button>
-        </div>
-      </div>
 
-      {/* Plantilles */}
-      {showTemplates && (
-        <Card className="border-tramit-blue/30">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-500" />
-                Plantilles de tasques
-              </CardTitle>
-              <button onClick={() => setShowTemplates(false)} className="text-muted-foreground hover:text-foreground p-1">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {templates.map(tpl => (
-                <div key={tpl.id} className="border border-border rounded-xl p-3 hover:border-tramit-blue/40 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-sm">{tpl.name}</p>
-                    <Button size="sm" variant="tramit" className="h-7 px-2 text-xs"
-                      onClick={() => applyTemplate(tpl)} disabled={saving}>
-                      Aplicar
-                    </Button>
-                  </div>
-                  <div className="space-y-1">
-                    {tpl.tasks.slice(0, 3).map((t, i) => (
-                      <p key={i} className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        <Circle className="h-2.5 w-2.5 shrink-0" />
-                        {t.title}
-                      </p>
-                    ))}
-                    {tpl.tasks.length > 3 && (
-                      <p className="text-xs text-muted-foreground">+ {tpl.tasks.length - 3} més...</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Formulari nova tasca */}
-      {showForm && (
-        <Card className="border-tramit-blue/30">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Nova tasca</CardTitle>
-              <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground p-1">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreate} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label>Títol *</Label>
-                  <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                    placeholder="Descripció de la tasca" required autoFocus />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Prioritat</Label>
-                  <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as Task['priority'] }))}
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <option value="normal">Normal</option>
-                    <option value="high">Alta</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Data límit</Label>
-                  <Input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Assignar a</Label>
-                  <select value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <option value="">Sense assignar</option>
-                    {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Client relacionat</Label>
-                  <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <option value="">Sense client</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Temps estimat (hores)</Label>
-                  <Input type="number" min="0" step="0.5" value={form.estimated_minutes}
-                    onChange={e => setForm(f => ({ ...f, estimated_minutes: e.target.value }))}
-                    placeholder="Ex: 2" />
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label>Descripció (opcional)</Label>
-                  <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                    placeholder="Detalls addicionals..." />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" variant="tramit" disabled={saving}>{saving ? 'Creant...' : 'Crear tasca'}</Button>
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel·lar</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Filtres */}
-      <div className="flex gap-2 flex-wrap">
-        {([
-          { id: 'all', label: 'Totes' },
-          { id: 'mine', label: 'Les meves' },
-          { id: 'pending', label: 'Actives' },
-          { id: 'done', label: 'Fetes' },
-        ] as const).map(f => (
-          <button key={f.id} onClick={() => setFilter(f.id)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-              filter === f.id ? 'bg-tramit-blue text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
-            }`}>
-            {f.label}
-          </button>
-        ))}
-        <button onClick={() => setShowArchived(!showArchived)}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-            showArchived ? 'bg-muted text-foreground border-muted' : 'border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground'
+      {/* Selector pestanya principal */}
+      <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
+        <button onClick={() => setMainTab('tasques')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            mainTab === 'tasques' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
           }`}>
-          📁 {showArchived ? 'Amagar arxivades' : `Arxivades${archivedCount > 0 ? ` (${archivedCount})` : ''}`}
+          <CheckCircle className="h-4 w-4" />
+          Tasques
+        </button>
+        <button onClick={() => setMainTab('documents')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            mainTab === 'documents' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}>
+          <FileText className="h-4 w-4" />
+          Documents
         </button>
       </div>
 
-      {/* VISTA KANBAN */}
-      {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {columns.map(col => {
-            const config = STATUS_CONFIG[col.status]
-            const Icon = config.icon
-            const colTasks = filtered.filter(t => t.status === col.status)
-            return (
-              <div key={col.status} className="space-y-3">
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${config.bg} ${config.border}`}>
-                  <Icon className={`h-4 w-4 ${config.style}`} />
-                  <span className="text-sm font-semibold">{config.label}</span>
-                  <span className="ml-auto text-xs font-bold text-muted-foreground">{colTasks.length}</span>
-                </div>
-                <div className="space-y-2 min-h-[100px]">
-                  {colTasks.map(task => <TaskCard key={task.id} task={task} />)}
-                  {colTasks.length === 0 && (
-                    <div className="border-2 border-dashed border-border rounded-lg p-6 text-center text-muted-foreground">
-                      <p className="text-xs">Cap tasca</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+      {/* ── TAB DOCUMENTS ── */}
+      {mainTab === 'documents' && (
+        <DocumentsClient
+          documents={documents as never[]}
+          requests={docRequests as never[]}
+          clients={clients}
+          profiles={profiles}
+          isAdmin={isAdmin}
+          currentUserId={currentUserId}
+        />
       )}
 
-      {/* VISTA LLISTA */}
-      {viewMode === 'list' && (
-        <div className="space-y-2">
-          {filtered.length === 0 ? (
-            <Card><CardContent className="py-10 text-center text-muted-foreground">
-              <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Cap tasca en aquest filtre</p>
-            </CardContent></Card>
-          ) : filtered.map(task => {
-            const assignedProfile = task.profiles as { full_name: string; color: string | null } | null
-            const clientName = (task.clients as { name: string } | null)?.name
-            const isOverdue = task.due_date && task.status !== 'done' && task.due_date < new Date().toISOString().split('T')[0]
-            const taskTime = getTaskTime(task.id)
-            const conf = STATUS_CONFIG[task.status]
-            const Icon = conf.icon
+      {/* ── TAB TASQUES ── */}
+      {mainTab === 'tasques' && (
+        <div className="space-y-5">
 
-            return (
-              <Card key={task.id} className={isOverdue ? 'border-red-200 dark:border-red-800' : ''}>
-                <CardContent className="pt-3 pb-3">
-                  <div className="flex items-center gap-3">
-                    <Icon className={`h-4 w-4 shrink-0 ${conf.style}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
-                          {task.title}
-                        </p>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${PRIORITY_CONFIG[task.priority].style}`}>
-                          {PRIORITY_CONFIG[task.priority].label}
-                        </span>
-                        {clientName && <span className="text-xs text-muted-foreground">{clientName}</span>}
-                        {taskTime > 0 && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                            <Timer className="h-3 w-3" />{formatMinutes(taskTime)}
-                          </span>
-                        )}
+          {/* Capçalera */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h1 className="text-2xl font-bold">Tasques</h1>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {stats.pending} pendents · {stats.inProgress} en curs · {stats.done} fetes
+                {stats.totalMinutes > 0 && (
+                  <span className="ml-2 text-tramit-blue font-medium">· {formatMinutes(stats.totalMinutes)} registrades</span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex gap-1 bg-muted p-1 rounded-lg">
+                <button onClick={() => setViewMode('kanban')}
+                  className={`p-1.5 rounded-md transition-all ${viewMode === 'kanban' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+                  <Kanban className="h-4 w-4" />
+                </button>
+                <button onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+                  <List className="h-4 w-4" />
+                </button>
+              </div>
+              {templates.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => setShowTemplates(!showTemplates)} className="flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5" />Plantilles
+                </Button>
+              )}
+              <Button variant="tramit" size="sm" onClick={() => setShowForm(true)} className="flex items-center gap-1.5">
+                <Plus className="h-3.5 w-3.5" />Nova tasca
+              </Button>
+            </div>
+          </div>
+
+          {/* Plantilles */}
+          {showTemplates && (
+            <Card className="border-tramit-blue/30">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-500" />Plantilles de tasques
+                  </CardTitle>
+                  <button onClick={() => setShowTemplates(false)} className="text-muted-foreground hover:text-foreground p-1">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {templates.map(tpl => (
+                    <div key={tpl.id} className="border border-border rounded-xl p-3 hover:border-tramit-blue/40 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-medium text-sm">{tpl.name}</p>
+                        <Button size="sm" variant="tramit" className="h-7 px-2 text-xs"
+                          onClick={() => applyTemplate(tpl)} disabled={saving}>
+                          Aplicar
+                        </Button>
                       </div>
-                      <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                        {assignedProfile && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <User className="h-3 w-3" />{assignedProfile.full_name.split(' ')[0]}
-                          </span>
-                        )}
-                        {task.due_date && (
-                          <span className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
-                            <Calendar className="h-3 w-3" />{task.due_date}
-                          </span>
+                      <div className="space-y-1">
+                        {tpl.tasks.slice(0, 3).map((t, i) => (
+                          <p key={i} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <Circle className="h-2.5 w-2.5 shrink-0" />{t.title}
+                          </p>
+                        ))}
+                        {tpl.tasks.length > 3 && (
+                          <p className="text-xs text-muted-foreground">+ {tpl.tasks.length - 3} més...</p>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
-                      {task.status !== 'done' && (
-                        <button onClick={() => changeStatus(task.id, task.status === 'pending' ? 'in_progress' : 'done')}
-                          disabled={loading === task.id}
-                          className="text-xs px-2 py-1 rounded-lg bg-tramit-blue-light text-tramit-blue hover:bg-tramit-blue hover:text-white transition-colors font-medium">
-                          {task.status === 'pending' ? 'Iniciar' : 'Fet ✓'}
-                        </button>
-                      )}
-                      <button onClick={() => setShowTimer(showTimer === task.id ? null : task.id)}
-                        className={`p-1.5 rounded-md transition-colors ${showTimer === task.id ? 'bg-tramit-blue text-white' : 'text-muted-foreground hover:bg-muted'}`}>
-                        <Timer className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => handleDelete(task.id)}
-                        disabled={loading === task.id}
-                        className="p-1.5 rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-colors"
-                        title="Esborrar tasca">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Formulari nova tasca */}
+          {showForm && (
+            <Card className="border-tramit-blue/30">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Nova tasca</CardTitle>
+                  <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground p-1">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleCreate} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label>Títol *</Label>
+                      <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                        placeholder="Descripció de la tasca" required autoFocus />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Prioritat</Label>
+                      <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as Task['priority'] }))}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <option value="normal">Normal</option>
+                        <option value="high">Alta</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Data límit</Label>
+                      <Input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Assignar a</Label>
+                      <select value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <option value="">Sense assignar</option>
+                        {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Client relacionat</Label>
+                      <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        <option value="">Sense client</option>
+                        {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Temps estimat (hores)</Label>
+                      <Input type="number" min="0" step="0.5" value={form.estimated_minutes}
+                        onChange={e => setForm(f => ({ ...f, estimated_minutes: e.target.value }))}
+                        placeholder="Ex: 2" />
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label>Descripció (opcional)</Label>
+                      <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                        placeholder="Detalls addicionals..." />
                     </div>
                   </div>
-                  {showTimer === task.id && (
-                    <div className="flex gap-1.5 items-center mt-2 pt-2 border-t flex-wrap">
-                      <Input type="number" value={timerMinutes} onChange={e => setTimerMinutes(e.target.value)}
-                        placeholder="Minuts" className="h-7 w-20 text-xs" min="1" autoFocus />
-                      <Input value={timerDesc} onChange={e => setTimerDesc(e.target.value)}
-                        placeholder="Nota (opcional)" className="h-7 flex-1 text-xs min-w-[80px]" />
-                      <Button size="sm" variant="tramit" className="h-7 px-2 text-xs"
-                        onClick={() => logTime(task.id, task.client_id)} disabled={saving || !timerMinutes}>
-                        Desar
-                      </Button>
-                      <button onClick={() => setShowTimer(null)} className="text-muted-foreground p-1">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+                  <div className="flex gap-2">
+                    <Button type="submit" variant="tramit" disabled={saving}>{saving ? 'Creant...' : 'Crear tasca'}</Button>
+                    <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel·lar</Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Arxivades */}
-      {showArchived && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
-            <span className="text-sm font-semibold text-muted-foreground">📁 Arxivades</span>
-            <span className="ml-auto text-xs font-bold text-muted-foreground">{archivedCount}</span>
+          {/* Filtres */}
+          <div className="flex gap-2 flex-wrap">
+            {([
+              { id: 'all', label: 'Totes' },
+              { id: 'mine', label: 'Les meves' },
+              { id: 'pending', label: 'Actives' },
+              { id: 'done', label: 'Fetes' },
+            ] as const).map(f => (
+              <button key={f.id} onClick={() => setFilter(f.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  filter === f.id ? 'bg-tramit-blue text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}>
+                {f.label}
+              </button>
+            ))}
+            <button onClick={() => setShowArchived(!showArchived)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                showArchived ? 'bg-muted text-foreground border-muted' : 'border-dashed border-muted-foreground/30 text-muted-foreground hover:text-foreground'
+              }`}>
+              📁 {showArchived ? 'Amagar arxivades' : `Arxivades${archivedCount > 0 ? ` (${archivedCount})` : ''}`}
+            </button>
           </div>
-          <div className="space-y-2">
-            {tasks.filter(t => t.status === 'archived').map(task => {
-              const assignedProfile = task.profiles as { full_name: string; color: string | null } | null
-              const clientName = (task.clients as { name: string } | null)?.name
-              return (
-                <Card key={task.id} className="opacity-60">
-                  <CardContent className="pt-3 pb-3 px-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium line-through text-muted-foreground truncate">{task.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {assignedProfile && <span className="text-xs text-muted-foreground">{assignedProfile.full_name.split(' ')[0]}</span>}
-                          {clientName && <span className="text-xs text-muted-foreground">· {clientName}</span>}
+
+          {/* VISTA KANBAN */}
+          {viewMode === 'kanban' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {columns.map(col => {
+                const config = STATUS_CONFIG[col.status]
+                const Icon = config.icon
+                const colTasks = filtered.filter(t => t.status === col.status)
+                return (
+                  <div key={col.status} className="space-y-3">
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${config.bg} ${config.border}`}>
+                      <Icon className={`h-4 w-4 ${config.style}`} />
+                      <span className="text-sm font-semibold">{config.label}</span>
+                      <span className="ml-auto text-xs font-bold text-muted-foreground">{colTasks.length}</span>
+                    </div>
+                    <div className="space-y-2 min-h-[100px]">
+                      {colTasks.map(task => <TaskCard key={task.id} task={task} />)}
+                      {colTasks.length === 0 && (
+                        <div className="border-2 border-dashed border-border rounded-lg p-6 text-center text-muted-foreground">
+                          <p className="text-xs">Cap tasca</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* VISTA LLISTA */}
+          {viewMode === 'list' && (
+            <div className="space-y-2">
+              {filtered.length === 0 ? (
+                <Card><CardContent className="py-10 text-center text-muted-foreground">
+                  <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Cap tasca en aquest filtre</p>
+                </CardContent></Card>
+              ) : filtered.map(task => {
+                const assignedProfile = task.profiles as { full_name: string; color: string | null } | null
+                const clientName = (task.clients as { name: string } | null)?.name
+                const isOverdue = task.due_date && task.status !== 'done' && task.due_date < new Date().toISOString().split('T')[0]
+                const taskTime = getTaskTime(task.id)
+                const conf = STATUS_CONFIG[task.status]
+                const Icon = conf.icon
+                return (
+                  <Card key={task.id} className={isOverdue ? 'border-red-200 dark:border-red-800' : ''}>
+                    <CardContent className="pt-3 pb-3">
+                      <div className="flex items-center gap-3">
+                        <Icon className={`h-4 w-4 shrink-0 ${conf.style}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
+                              {task.title}
+                            </p>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${PRIORITY_CONFIG[task.priority].style}`}>
+                              {PRIORITY_CONFIG[task.priority].label}
+                            </span>
+                            {clientName && <span className="text-xs text-muted-foreground">{clientName}</span>}
+                            {taskTime > 0 && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                                <Timer className="h-3 w-3" />{formatMinutes(taskTime)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                            {assignedProfile && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <User className="h-3 w-3" />{assignedProfile.full_name.split(' ')[0]}
+                              </span>
+                            )}
+                            {task.due_date && (
+                              <span className={`text-xs flex items-center gap-1 ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
+                                <Calendar className="h-3 w-3" />{task.due_date}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          {task.status !== 'done' && (
+                            <button onClick={() => changeStatus(task.id, task.status === 'pending' ? 'in_progress' : 'done')}
+                              disabled={loading === task.id}
+                              className="text-xs px-2 py-1 rounded-lg bg-tramit-blue-light text-tramit-blue hover:bg-tramit-blue hover:text-white transition-colors font-medium">
+                              {task.status === 'pending' ? 'Iniciar' : 'Fet ✓'}
+                            </button>
+                          )}
+                          <button onClick={() => setShowTimer(showTimer === task.id ? null : task.id)}
+                            className={`p-1.5 rounded-md transition-colors ${showTimer === task.id ? 'bg-tramit-blue text-white' : 'text-muted-foreground hover:bg-muted'}`}>
+                            <Timer className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => handleDelete(task.id)}
+                            disabled={loading === task.id}
+                            className="p-1.5 rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 transition-colors"
+                            title="Esborrar tasca">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => changeStatus(task.id, 'pending')}
-                          className="text-xs text-tramit-blue hover:underline shrink-0">
-                          Desarxivar
-                        </button>
-                        <button onClick={() => handleDelete(task.id)}
-                          disabled={loading === task.id}
-                          className="p-1 rounded text-red-400 hover:text-red-600 transition-colors"
-                          title="Esborrar">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-            {archivedCount === 0 && <p className="text-sm text-muted-foreground text-center py-4">Cap tasca arxivada</p>}
-          </div>
+                      {showTimer === task.id && (
+                        <div className="flex gap-1.5 items-center mt-2 pt-2 border-t flex-wrap">
+                          <Input type="number" value={timerMinutes} onChange={e => setTimerMinutes(e.target.value)}
+                            placeholder="Minuts" className="h-7 w-20 text-xs" min="1" autoFocus />
+                          <Input value={timerDesc} onChange={e => setTimerDesc(e.target.value)}
+                            placeholder="Nota (opcional)" className="h-7 flex-1 text-xs min-w-[80px]" />
+                          <Button size="sm" variant="tramit" className="h-7 px-2 text-xs"
+                            onClick={() => logTime(task.id, task.client_id)} disabled={saving || !timerMinutes}>
+                            Desar
+                          </Button>
+                          <button onClick={() => setShowTimer(null)} className="text-muted-foreground p-1">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Arxivades */}
+          {showArchived && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted">
+                <span className="text-sm font-semibold text-muted-foreground">📁 Arxivades</span>
+                <span className="ml-auto text-xs font-bold text-muted-foreground">{archivedCount}</span>
+              </div>
+              <div className="space-y-2">
+                {tasks.filter(t => t.status === 'archived').map(task => {
+                  const assignedProfile = task.profiles as { full_name: string; color: string | null } | null
+                  const clientName = (task.clients as { name: string } | null)?.name
+                  return (
+                    <Card key={task.id} className="opacity-60">
+                      <CardContent className="pt-3 pb-3 px-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium line-through text-muted-foreground truncate">{task.title}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {assignedProfile && <span className="text-xs text-muted-foreground">{assignedProfile.full_name.split(' ')[0]}</span>}
+                              {clientName && <span className="text-xs text-muted-foreground">· {clientName}</span>}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => changeStatus(task.id, 'pending')}
+                              className="text-xs text-tramit-blue hover:underline shrink-0">
+                              Desarxivar
+                            </button>
+                            <button onClick={() => handleDelete(task.id)}
+                              disabled={loading === task.id}
+                              className="p-1 rounded text-red-400 hover:text-red-600 transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+                {archivedCount === 0 && <p className="text-sm text-muted-foreground text-center py-4">Cap tasca arxivada</p>}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
     </div>
