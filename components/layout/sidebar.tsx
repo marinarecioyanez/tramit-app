@@ -25,7 +25,6 @@ const adminNavItems: NavItem[] = [
   { label: 'Equip',           href: '/dashboard/equip',          icon: Umbrella },
   { label: 'Clients',         href: '/dashboard/clients',        icon: Users },
   { label: 'Tasques',         href: '/dashboard/tasques',        icon: CheckSquare },
-  { label: 'Documents',       href: '/dashboard/documents',      icon: FileText },
   { label: 'Informes',        href: '/dashboard/informes',       icon: BarChart3 },
   { label: 'Assessor Tràmit', href: '/dashboard/assessor',       icon: BookOpen },
   { label: 'Administració',   href: '/dashboard/administracio',  icon: Settings },
