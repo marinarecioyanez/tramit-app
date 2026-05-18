@@ -84,6 +84,9 @@ export function TasquesClient({
   templates = [],
   currentUserId,
   timeEntries: initialTimeEntries = [],
+  documents = [],
+  docRequests = [],
+  isAdmin = false,
 }: {
   tasks: Task[]
   profiles: Profile[]
@@ -91,6 +94,9 @@ export function TasquesClient({
   templates?: Template[]
   currentUserId: string
   timeEntries?: TimeEntry[]
+  documents?: unknown[]
+  docRequests?: unknown[]
+  isAdmin?: boolean
 }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(initialTimeEntries)
