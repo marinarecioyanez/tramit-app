@@ -216,14 +216,12 @@ export function NovaCitaButton({
 
       const startTime = `${form.start_date}T${form.start_time}:00`
       const endTime = `${form.start_date}T${form.end_time}:00`
-      const isAdmin = currentUserRole === 'admin' || currentUserRole === 'supervisor'
-      const isOwnAppointment = form.main_attendee_id === currentUserId
-      const status = isAdmin || isOwnAppointment ? 'confirmed' : 'pending'
 
-      const { data: appointment, error: insertError } = await supabase
-        .from('appointments')
-        .insert({
-          created_by: currentUserId,
+      // Cridar API route (guarda la cita + envia emails)
+      const res = await fetch('/api/appointments/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           main_attendee_id: form.main_attendee_id,
           client_id: clientId,
           start_time: startTime,
@@ -233,51 +231,12 @@ export function NovaCitaButton({
           priority: form.priority,
           location: form.location || null,
           internal_notes: form.internal_notes || null,
-          status,
-          send_email_to_client: false,
-        })
-        .select()
-        .single()
-
-      if (insertError) throw insertError
-
-      // Assistent principal
-      await supabase.from('appointment_attendees').insert({
-        appointment_id: appointment.id,
-        user_id: form.main_attendee_id,
-        is_main: true,
-        status: status === 'confirmed' ? 'accepted' : 'pending',
+          extra_attendees: selectedAttendees,
+        }),
       })
 
-      // Altres assistents
-      for (const attendeeId of selectedAttendees) {
-        await supabase.from('appointment_attendees').insert({
-          appointment_id: appointment.id,
-          user_id: attendeeId,
-          is_main: false,
-          status: 'pending',
-        })
-
-        // Notificació
-        await supabase.from('notifications').insert({
-          user_id: attendeeId,
-          title: 'Nova cita assignada',
-          body: `Has estat convidat/da a una cita el ${form.start_date} a les ${form.start_time}.`,
-          type: 'appointment',
-          read: false,
-        })
-      }
-
-      // Notificació al destinatari principal si no és un mateix
-      if (form.main_attendee_id !== currentUserId) {
-        await supabase.from('notifications').insert({
-          user_id: form.main_attendee_id,
-          title: status === 'confirmed' ? 'Nova cita programada' : 'Nova sol·licitud de cita',
-          body: `${status === 'confirmed' ? 'Tens una cita' : 'Has rebut una sol·licitud de cita'} el ${form.start_date} a les ${form.start_time}.`,
-          type: 'appointment',
-          read: false,
-        })
-      }
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error creant la cita')
 
       setSuccess(true)
       setTimeout(() => {
@@ -323,7 +282,7 @@ export function NovaCitaButton({
                     <CheckCircle className="h-7 w-7 text-green-600" />
                   </div>
                   <p className="font-semibold text-lg">Cita creada!</p>
-                  <p className="text-sm text-muted-foreground">Els assistents han rebut la notificació.</p>
+                  <p className="text-sm text-muted-foreground">Els assistents han rebut la notificació per email.</p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -506,7 +465,7 @@ export function NovaCitaButton({
                     </div>
                     {selectedAttendees.length > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        Rebran una notificació: {selectedAttendees.map(id =>
+                        Rebran notificació per email: {selectedAttendees.map(id =>
                           workers.find(p => p.id === id)?.full_name.split(' ')[0]
                         ).join(', ')}
                       </p>
@@ -593,11 +552,4 @@ export function NovaCitaButton({
                     </Button>
                   </div>
                 </form>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </div>
-  )
-}
+              )
