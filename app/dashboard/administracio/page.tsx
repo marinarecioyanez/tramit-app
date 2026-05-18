@@ -16,21 +16,24 @@ export default async function AdministracioPage() {
     { data: closures },
     { data: auditLogs },
     { data: accessLogs },
+    { data: fiscalDeadlines },
   ] = await Promise.all([
     supabase.from('profiles').select('*').order('full_name'),
     supabase.from('settings').select('*').order('category'),
     supabase.from('holidays').select('*').order('date'),
     supabase.from('company_closures').select('*').order('date'),
-    supabase
-      .from('audit_logs')
+    supabase.from('audit_logs')
       .select('*, profiles!audit_logs_user_id_fkey(full_name, email)')
       .order('created_at', { ascending: false })
       .limit(200),
-    supabase
-      .from('access_logs')
+    supabase.from('access_logs')
       .select('*, profiles!access_logs_user_id_fkey(full_name)')
       .order('created_at', { ascending: false })
       .limit(100),
+    supabase.from('fiscal_deadlines')
+      .select('*')
+      .in('year', [currentYear, currentYear + 1])
+      .order('date', { ascending: true }),
   ])
 
   return (
@@ -42,6 +45,7 @@ export default async function AdministracioPage() {
       auditLogs={auditLogs || []}
       accessLogs={accessLogs || []}
       currentYear={currentYear}
+      fiscalDeadlines={fiscalDeadlines || []}
     />
   )
 }
