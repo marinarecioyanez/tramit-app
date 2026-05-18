@@ -73,7 +73,6 @@ export function NovaCitaButton({
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Client
   const [clientSearch, setClientSearch] = useState('')
   const [clients, setClients] = useState<Client[]>([])
   const [filteredClients, setFilteredClients] = useState<Client[]>([])
@@ -81,8 +80,6 @@ export function NovaCitaButton({
   const [showClientDropdown, setShowClientDropdown] = useState(false)
   const [creatingNewClient, setCreatingNewClient] = useState(false)
   const [newClientName, setNewClientName] = useState('')
-
-  // Treballadors assistents
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([])
 
   const supabase = createClient()
@@ -115,7 +112,6 @@ export function NovaCitaButton({
     }
   }, [initialDate, initialTime])
 
-  // Carregar clients
   useEffect(() => {
     async function loadClients() {
       const { data } = await supabase
@@ -127,7 +123,6 @@ export function NovaCitaButton({
     if (showForm) loadClients()
   }, [showForm])
 
-  // Filtrar clients
   useEffect(() => {
     if (!clientSearch) {
       setFilteredClients(clients.slice(0, 5))
@@ -198,7 +193,6 @@ export function NovaCitaButton({
     try {
       let clientId = selectedClient?.id || null
 
-      // Crear client nou si cal
       if (creatingNewClient && newClientName.trim()) {
         const { data: newClient, error: clientError } = await supabase
           .from('clients')
@@ -217,7 +211,6 @@ export function NovaCitaButton({
       const startTime = `${form.start_date}T${form.start_time}:00`
       const endTime = `${form.start_date}T${form.end_time}:00`
 
-      // Cridar API route (guarda la cita + envia emails)
       const res = await fetch('/api/appointments/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -287,7 +280,6 @@ export function NovaCitaButton({
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
 
-                  {/* Data i hora */}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1.5 col-span-1">
                       <Label>Data *</Label>
@@ -321,7 +313,6 @@ export function NovaCitaButton({
                     </div>
                   </div>
 
-                  {/* Client */}
                   <div className="space-y-1.5">
                     <Label>Client</Label>
                     {selectedClient ? (
@@ -420,7 +411,6 @@ export function NovaCitaButton({
                     )}
                   </div>
 
-                  {/* Destinatari principal */}
                   <div className="space-y-1.5">
                     <Label>Treballador principal *</Label>
                     <select
@@ -439,7 +429,6 @@ export function NovaCitaButton({
                     </select>
                   </div>
 
-                  {/* Altres assistents */}
                   <div className="space-y-1.5">
                     <Label>Altres assistents <span className="text-muted-foreground">(opcional)</span></Label>
                     <div className="flex flex-wrap gap-2">
@@ -472,7 +461,6 @@ export function NovaCitaButton({
                     )}
                   </div>
 
-                  {/* Temàtica i canal */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label>Temàtica *</Label>
@@ -500,7 +488,6 @@ export function NovaCitaButton({
                     </div>
                   </div>
 
-                  {/* Prioritat i lloc */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label>Prioritat</Label>
@@ -524,7 +511,6 @@ export function NovaCitaButton({
                     </div>
                   </div>
 
-                  {/* Notes */}
                   <div className="space-y-1.5">
                     <Label>Notes internes <span className="text-muted-foreground">(opcional)</span></Label>
                     <textarea
@@ -552,8 +538,8 @@ export function NovaCitaButton({
                     </Button>
                   </div>
                 </form>
-              )
-</CardContent>
+              )}
+            </CardContent>
           </Card>
         </div>
       )}
