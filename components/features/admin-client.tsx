@@ -10,8 +10,7 @@ import {
   Users, Settings, Shield, Plus, X,
   CheckCircle, AlertTriangle, Pencil, Eye, EyeOff,
   ChevronDown, ChevronUp, Download, Search,
-  Activity, Lock, Globe, Server, Calendar,
-  RefreshCw, Filter
+  Activity, Lock, Server,
 } from 'lucide-react'
 import { SettingsClient } from './settings-client'
 import { CalendariFiscalClient } from './calendari-fiscal-client'
@@ -23,6 +22,11 @@ interface ProfileData {
 interface Setting { id: string; key: string; value: string; description: string | null; category: string | null }
 interface Holiday { id: string; date: string; name: string; calendar_type: string; year: number }
 interface Closure { id: string; date: string; name: string; year: number; deducts_vacation: boolean }
+interface FiscalDeadline {
+  id: string; date: string; name: string; model: string | null
+  description: string | null; year: number; color: string | null
+  is_official: boolean | null; recurring: boolean | null; source_url: string | null
+}
 interface AuditLog {
   id: string; action: string; entity_type: string | null; created_at: string
   description?: string | null; ip_address?: string | null
@@ -84,11 +88,12 @@ function downloadCSV(filename: string, headers: string[], rows: (string | number
 type TabId = 'usuaris' | 'configuracio' | 'auditoria' | 'accessos' | 'sistema'
 
 export function AdminClient({
-  profiles, settings, holidays, closures, auditLogs, accessLogs = [], currentYear = new Date().getFullYear(),
+  profiles, settings, holidays, closures, auditLogs, accessLogs = [],
+  currentYear = new Date().getFullYear(), fiscalDeadlines = [],
 }: {
   profiles: ProfileData[]; settings: Setting[]; holidays: Holiday[]
   closures: Closure[]; auditLogs: AuditLog[]; accessLogs?: AccessLog[]
-  currentYear?: number
+  currentYear?: number; fiscalDeadlines?: FiscalDeadline[]
 }) {
   const [activeTab, setActiveTab] = useState<TabId>('usuaris')
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -110,7 +115,6 @@ export function AdminClient({
 
   const supabase = createClient()
 
-  // ── Filtres auditoria ──
   const filteredLogs = useMemo(() => {
     let result = auditLogs
     if (auditSearch) {
@@ -131,7 +135,6 @@ export function AdminClient({
     return result
   }, [auditLogs, auditSearch, auditFilterAction, auditFilterUser, auditDateFrom, auditDateTo])
 
-  // ── Accions usuaris ──
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true); setError(null)
@@ -148,7 +151,7 @@ export function AdminClient({
       setUserForm({ full_name: '', email: '', password: '', role: 'worker', phone: '', color: '#2272A3' })
       setTimeout(() => { setSuccess(null); window.location.reload() }, 1500)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error creant l\'usuari')
+      setError(err instanceof Error ? err.message : "Error creant l'usuari")
     } finally { setSaving(false) }
   }
 
@@ -167,7 +170,25 @@ export function AdminClient({
       setEditingUser(null)
       setTimeout(() => { setSuccess(null); window.location.reload() }, 1500)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error actualitzant l\'usuari')
+      setError(err instanceof Error ? err.message : "Error actualitzant l'usuari")
+    } finally { setSaving(false) }
+  }
+
+  async function handleDeleteUser(userId: string, userName: string) {
+    if (!confirm(`Segur que vols esborrar l'usuari "${userName}"? Aquesta acció no es pot desfer.`)) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setSuccess('Usuari esborrat correctament')
+      setTimeout(() => { setSuccess(null); window.location.reload() }, 1500)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error esborrant l'usuari")
     } finally { setSaving(false) }
   }
 
@@ -227,7 +248,8 @@ export function AdminClient({
       {activeTab === 'usuaris' && (
         <div className="space-y-4">
           <div className="flex justify-end">
-            <Button variant="tramit" size="sm" onClick={() => { setShowCreateForm(true); setEditingUser(null); setUserForm({ full_name: '', email: '', password: '', role: 'worker', phone: '', color: '#2272A3' }) }}
+            <Button variant="tramit" size="sm"
+              onClick={() => { setShowCreateForm(true); setEditingUser(null); setUserForm({ full_name: '', email: '', password: '', role: 'worker', phone: '', color: '#2272A3' }) }}
               className="flex items-center gap-1.5">
               <Plus className="h-3.5 w-3.5" />Nou usuari
             </Button>
@@ -238,7 +260,9 @@ export function AdminClient({
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">{editingUser ? `Editar: ${editingUser.full_name}` : 'Nou usuari'}</CardTitle>
-                  <button onClick={() => { setShowCreateForm(false); setEditingUser(null) }} className="text-muted-foreground hover:text-foreground p-1"><X className="h-4 w-4" /></button>
+                  <button onClick={() => { setShowCreateForm(false); setEditingUser(null) }} className="text-muted-foreground hover:text-foreground p-1">
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -318,13 +342,19 @@ export function AdminClient({
                     </div>
                     <div className="flex gap-1 shrink-0">
                       <button onClick={() => startEdit(profile)}
-                        className="p-1.5 text-muted-foreground hover:text-tramit-blue hover:bg-tramit-blue-light rounded-md transition-colors">
+                        className="p-1.5 text-muted-foreground hover:text-tramit-blue hover:bg-tramit-blue-light rounded-md transition-colors"
+                        title="Editar usuari">
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button onClick={() => toggleUserActive(profile.id, profile.active)}
                         className={`p-1.5 rounded-md transition-colors ${profile.active ? 'text-muted-foreground hover:text-amber-600 hover:bg-amber-50' : 'text-green-600 hover:bg-green-50'}`}
                         title={profile.active ? 'Desactivar usuari' : 'Activar usuari'}>
                         {profile.active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                      <button onClick={() => handleDeleteUser(profile.id, profile.full_name)}
+                        className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                        title="Esborrar usuari">
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
@@ -337,13 +367,21 @@ export function AdminClient({
 
       {/* ── CONFIGURACIÓ ── */}
       {activeTab === 'configuracio' && (
-        <SettingsClient settings={settings} holidays={holidays} closures={closures} />
+        <div className="space-y-8">
+          <SettingsClient settings={settings} holidays={holidays} closures={closures} />
+          <div className="border-t pt-8">
+            <CalendariFiscalClient
+              deadlines={fiscalDeadlines}
+              currentYear={currentYear}
+              isAdmin={true}
+            />
+          </div>
+        </div>
       )}
 
       {/* ── AUDITORIA ── */}
       {activeTab === 'auditoria' && (
         <div className="space-y-4">
-          {/* Filtres */}
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -384,7 +422,7 @@ export function AdminClient({
                     </button>
                   )}
                   <Button variant="outline" size="sm" className="ml-auto flex items-center gap-1.5 h-8"
-                    onClick={() => downloadCSV('auditoria', ['Data','Usuari','Acció','Entitat','IP'],
+                    onClick={() => downloadCSV('auditoria', ['Data', 'Usuari', 'Acció', 'Entitat', 'IP'],
                       filteredLogs.map(l => `"${formatDate(l.created_at)}","${(l.profiles as { full_name: string } | null)?.full_name || '—'}","${l.action}","${l.entity_type || '—'}","${l.ip_address || '—'}"`)
                     )}>
                     <Download className="h-3.5 w-3.5" />CSV
@@ -405,7 +443,6 @@ export function AdminClient({
               const isExpanded = expandedLog === log.id
               const profile = log.profiles as { full_name: string } | null
               const hasDetails = log.old_values || log.new_values
-
               return (
                 <div key={log.id} className="border border-border rounded-lg overflow-hidden">
                   <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
@@ -416,12 +453,8 @@ export function AdminClient({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-medium">{profile?.full_name || '—'}</p>
-                        {log.entity_type && (
-                          <span className="text-xs text-muted-foreground">· {log.entity_type}</span>
-                        )}
-                        {log.description && (
-                          <span className="text-xs text-muted-foreground">· {log.description}</span>
-                        )}
+                        {log.entity_type && <span className="text-xs text-muted-foreground">· {log.entity_type}</span>}
+                        {log.description && <span className="text-xs text-muted-foreground">· {log.description}</span>}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                         <span>{formatDate(log.created_at)}</span>
@@ -467,7 +500,7 @@ export function AdminClient({
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">{accessLogs.length} accessos registrats</p>
             <Button variant="outline" size="sm" onClick={() => downloadCSV('accessos',
-              ['Data','Usuari','Email','Acció','IP','Dispositiu'],
+              ['Data', 'Usuari', 'Email', 'Acció', 'IP', 'Dispositiu'],
               accessLogs.map(l => `"${formatDate(l.created_at)}","${(l.profiles as { full_name: string } | null)?.full_name || '—'}","${l.email || '—'}","${l.action}","${l.ip_address || '—'}","${(l.user_agent || '').substring(0, 50)}"`)
             )} className="flex items-center gap-1.5">
               <Download className="h-3.5 w-3.5" />Exportar CSV
@@ -487,7 +520,7 @@ export function AdminClient({
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        {['Data i hora','Usuari','Acció','Adreça IP','Dispositiu'].map(h => (
+                        {['Data i hora', 'Usuari', 'Acció', 'Adreça IP', 'Dispositiu'].map(h => (
                           <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">{h}</th>
                         ))}
                       </tr>
@@ -570,11 +603,11 @@ export function AdminClient({
             <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {[
                 { label: 'Usuaris', value: profiles.length },
-                { label: 'Registres d\'auditoria', value: auditLogs.length },
-                { label: 'Registres d\'accés', value: accessLogs.length },
+                { label: "Registres d'auditoria", value: auditLogs.length },
+                { label: "Registres d'accés", value: accessLogs.length },
                 { label: 'Festius configurats', value: holidays.length },
                 { label: 'Tancaments', value: closures.length },
-                { label: 'Paràmetres de config.', value: settings.length },
+                { label: 'Terminis fiscals', value: fiscalDeadlines.length },
               ].map(s => (
                 <div key={s.label} className="text-center p-3 rounded-xl bg-muted/50">
                   <p className="text-2xl font-bold text-tramit-blue">{s.value}</p>
