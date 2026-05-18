@@ -20,14 +20,15 @@ interface NavItem {
 
 const adminNavItems: NavItem[] = [
   { label: 'Tauler',          href: '/dashboard',                icon: LayoutDashboard },
-  { label: 'Missatges',       href: '/dashboard/missatges',      icon: MessageSquare },
   { label: 'Agenda',          href: '/dashboard/agenda',         icon: Calendar },
+  { label: 'Missatges',       href: '/dashboard/missatges',      icon: MessageSquare },
   { label: 'Equip',           href: '/dashboard/equip',          icon: Umbrella },
   { label: 'Clients',         href: '/dashboard/clients',        icon: Users },
   { label: 'Tasques',         href: '/dashboard/tasques',        icon: CheckSquare },
   { label: 'Informes',        href: '/dashboard/informes',       icon: BarChart3 },
   { label: 'Assessor Tràmit', href: '/dashboard/assessor',       icon: BookOpen },
-  { label: 'Administració',   href: '/dashboard/administracio',  icon: Settings },
+  { label: 'Calendari Fiscal', href: '/dashboard/calendari-fiscal', icon: Calendar },
+  { label: 'Administració',    href: '/dashboard/administracio',    icon: Settings },
 ]
 
 const workerNavItems: NavItem[] = [
