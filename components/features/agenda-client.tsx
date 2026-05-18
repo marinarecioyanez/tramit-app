@@ -178,16 +178,17 @@ export function AgendaClient({
     setShowNovaCita(true)
   }
 
-  function openDayDetail(dateStr: string) {
+  function handleDayClick(dateStr: string) {
     const d = new Date(dateStr + 'T12:00:00')
-    setCurrentDate(d)
-    setSelectedDay(dateStr)
-    setViewMode('dia')
+    if (d.getDay() === 0 || d.getDay() === 6) return
+    setSelectedDay(prev => prev === dateStr ? null : dateStr)
+    setSelectedAppointment(null)
   }
 
   function navigate(direction: number) {
     if (viewMode === 'mes') {
       setCurrentDate(new Date(year, month + direction, 1, 12))
+      setSelectedDay(null)
     } else if (viewMode === 'setmana') {
       const monday = getMondayOfWeek(currentDate)
       monday.setDate(monday.getDate() + direction * 7)
@@ -204,9 +205,6 @@ export function AgendaClient({
     now.setHours(12, 0, 0, 0)
     setCurrentDate(now)
     setSelectedDay(todayStr)
-    if (viewMode === 'mes') {
-      setCurrentDate(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12))
-    }
   }
 
   function getHeaderTitle(): string {
@@ -223,6 +221,109 @@ export function AgendaClient({
   const workers = profiles.filter(p =>
     p.role === 'worker' || p.role === 'admin' || p.role === 'supervisor'
   )
+
+  // ── Panell lateral del dia ─────────────────────────────────
+  function DayPanel({ dateStr }: { dateStr: string }) {
+    const date = new Date(dateStr + 'T12:00:00')
+    const dayAbsences = getAbsencesForDay(date)
+    const dayAppointments = getAppointmentsForDay(date)
+    const special = isSpecialDay(date)
+    const dayName = DAYS_FULL_CA[date.getDay() === 0 ? 6 : date.getDay() - 1]
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6
+    const isToday = dateStr === todayStr
+
+    return (
+      <div className="w-72 shrink-0 border border-border rounded-xl bg-background overflow-hidden">
+        {/* Capçalera */}
+        <div className={`px-4 py-3 border-b border-border flex items-center justify-between ${isToday ? 'bg-tramit-blue text-white' : 'bg-muted/50'}`}>
+          <div>
+            <p className={`text-sm font-semibold ${isToday ? 'text-white' : ''}`}>
+              {dayName}, {date.getDate()} {MONTHS_CA[date.getMonth()]}
+            </p>
+            {special.name && (
+              <p className={`text-xs mt-0.5 ${isToday ? 'text-white/80' : 'text-amber-600'}`}>
+                🎌 {special.name}
+              </p>
+            )}
+          </div>
+          <button onClick={() => setSelectedDay(null)}
+            className={`p-1 rounded-md transition-colors ${isToday ? 'hover:bg-white/20 text-white' : 'hover:bg-muted text-muted-foreground'}`}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-3 space-y-4 max-h-[600px] overflow-y-auto">
+
+          {/* Cites */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Cites {dayAppointments.length > 0 ? `(${dayAppointments.length})` : ''}
+            </p>
+            {dayAppointments.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">Cap cita</p>
+            ) : dayAppointments.map(apt => {
+              const p = apt.profiles as { full_name: string; color: string | null } | null
+              const clientName = (apt.clients as { name: string } | null)?.name
+              const color = p?.color || '#2272A3'
+              return (
+                <button key={apt.id}
+                  onClick={() => setSelectedAppointment(apt)}
+                  className="w-full text-left p-2.5 rounded-lg border border-border hover:border-tramit-blue/50 hover:bg-tramit-blue-light/20 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span className="text-xs font-medium">{formatTime(apt.start_time)}–{formatTime(apt.end_time)}</span>
+                    <span className={`ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_STYLES[apt.status] || ''}`}>
+                      {STATUS_LABELS[apt.status] || apt.status}
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium mt-1">{TOPIC_LABELS[apt.topic] || apt.topic}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {p?.full_name?.split(' ')[0]}{clientName ? ` · ${clientName}` : ''}
+                  </p>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Absències */}
+          {dayAbsences.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Absències ({dayAbsences.length})
+              </p>
+              {dayAbsences.map(abs => {
+                const profile = abs.profiles as { full_name: string; color: string | null } | null
+                const color = profile?.color || '#2272A3'
+                return (
+                  <div key={abs.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                    <div className="h-6 w-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                      style={{ backgroundColor: color }}>
+                      {getInitials(profile?.full_name || '?')}
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium">{profile?.full_name?.split(' ')[0]}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {abs.type === 'vacation' ? 'Vacances' : 'Absència'}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Botó nova cita */}
+          {!isWeekend && !special.holiday && !special.closure && (
+            <button
+              onClick={() => { setSelectedDay(null); openNovaCita(dateStr) }}
+              className="w-full py-2 rounded-lg border-2 border-dashed border-border text-xs text-muted-foreground hover:border-tramit-blue hover:text-tramit-blue transition-colors">
+              + Nova cita
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   // ── Modal detall cita ──────────────────────────────────────
   function AppointmentModal({ apt }: { apt: Appointment }) {
@@ -249,26 +350,22 @@ export function AgendaClient({
                 {STATUS_LABELS[apt.status] || apt.status}
               </span>
             </div>
-
             {clientName && (
               <div className="flex items-center gap-2 text-sm">
                 <User className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span>{clientName}</span>
               </div>
             )}
-
             {apt.location && (
               <div className="flex items-center gap-2 text-sm">
                 <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span>{apt.location}</span>
               </div>
             )}
-
             <div className="text-sm">
               <span className="text-muted-foreground">Canal: </span>
               {CHANNEL_LABELS[apt.channel] || apt.channel}
             </div>
-
             {attendees.length > 0 && (
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assistents</p>
@@ -288,7 +385,6 @@ export function AgendaClient({
                 })}
               </div>
             )}
-
             {apt.internal_notes && (
               <div className="bg-muted/50 rounded-lg px-3 py-2">
                 <p className="text-xs text-muted-foreground">{apt.internal_notes}</p>
@@ -300,124 +396,14 @@ export function AgendaClient({
     )
   }
 
-  // ── Modal detall dia ───────────────────────────────────────
-  function DayModal({ dateStr }: { dateStr: string }) {
-    const date = new Date(dateStr + 'T12:00:00')
-    const dayAbsences = getAbsencesForDay(date)
-    const dayAppointments = getAppointmentsForDay(date)
-    const special = isSpecialDay(date)
-    const dayName = DAYS_FULL_CA[date.getDay() === 0 ? 6 : date.getDay() - 1]
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6
-
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <Card className="w-full max-w-lg max-h-[85vh] overflow-y-auto">
-          <CardHeader className="pb-3 border-b sticky top-0 bg-background z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base">
-                  {dayName}, {date.getDate()} {MONTHS_CA[date.getMonth()]} {date.getFullYear()}
-                </CardTitle>
-                {special.name && (
-                  <p className="text-xs text-amber-600 mt-0.5">🎌 {special.name}</p>
-                )}
-              </div>
-              <button onClick={() => setSelectedDay(null)} className="text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-4 space-y-4">
-            {/* Cites del dia */}
-            {dayAppointments.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Cites ({dayAppointments.length})
-                </p>
-                {dayAppointments.map(apt => {
-                  const mainProfile = apt.profiles as { full_name: string; color: string | null } | null
-                  const clientName = (apt.clients as { name: string } | null)?.name
-                  const color = mainProfile?.color || '#2272A3'
-                  return (
-                    <button
-                      key={apt.id}
-                      onClick={() => { setSelectedDay(null); setSelectedAppointment(apt) }}
-                      className="w-full text-left p-3 rounded-lg border border-border hover:border-tramit-blue/50 hover:bg-tramit-blue-light/20 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                        <span className="text-sm font-medium">{formatTime(apt.start_time)} — {formatTime(apt.end_time)}</span>
-                        <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[apt.status] || ''}`}>
-                          {STATUS_LABELS[apt.status] || apt.status}
-                        </span>
-                      </div>
-                      <p className="text-sm mt-1">{TOPIC_LABELS[apt.topic] || apt.topic}</p>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        {mainProfile && <span>{mainProfile.full_name.split(' ')[0]}</span>}
-                        {clientName && <span>· {clientName}</span>}
-                        <span>· {CHANNEL_LABELS[apt.channel] || apt.channel}</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-2">Cap cita aquest dia</p>
-            )}
-
-            {/* Absències del dia */}
-            {dayAbsences.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Absències ({dayAbsences.length})
-                </p>
-                {dayAbsences.map(abs => {
-                  const profile = abs.profiles as { full_name: string; color: string | null } | null
-                  const color = profile?.color || '#2272A3'
-                  return (
-                    <div key={abs.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-                      <div className="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ backgroundColor: color }}>
-                        {getInitials(profile?.full_name || '?')}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{profile?.full_name || '—'}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {abs.type === 'vacation' ? 'Vacances' : 'Absència'}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Botó crear cita */}
-            {!isWeekend && !special.holiday && !special.closure && (
-              <button
-                onClick={() => { setSelectedDay(null); openNovaCita(dateStr) }}
-                className="w-full py-2.5 rounded-lg border-2 border-dashed border-border text-sm text-muted-foreground hover:border-tramit-blue hover:text-tramit-blue transition-colors"
-              >
-                + Nova cita aquest dia
-              </button>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   // ── Vista MES ──────────────────────────────────────────────
   function renderMes() {
     const firstDay = new Date(year, month, 1, 12)
     const lastDay = new Date(year, month + 1, 0, 12)
-
     let startDow = firstDay.getDay() - 1
     if (startDow < 0) startDow = 6
-
     const totalCells = Math.ceil((startDow + lastDay.getDate()) / 7) * 7
     const days: (Date | null)[] = []
-
     for (let i = 0; i < totalCells; i++) {
       const dayNum = i - startDow + 1
       if (dayNum < 1 || dayNum > lastDay.getDate()) {
@@ -428,106 +414,106 @@ export function AgendaClient({
     }
 
     return (
-      <Card>
-        <CardContent className="p-0 overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-border">
-            {DAYS_CA.map((day, i) => (
-              <div key={day} className={`py-2 text-center text-xs font-semibold ${i >= 5 ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
-                {day}
+      <div className={`flex gap-4 items-start ${selectedDay ? '' : ''}`}>
+        {/* Calendari */}
+        <div className="flex-1 min-w-0">
+          <Card>
+            <CardContent className="p-0 overflow-hidden">
+              <div className="grid grid-cols-7 border-b border-border">
+                {DAYS_CA.map((day, i) => (
+                  <div key={day} className={`py-2 text-center text-xs font-semibold ${i >= 5 ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
+                    {day}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-7">
+                {days.map((date, idx) => {
+                  if (!date) return (
+                    <div key={`empty-${idx}`} className="min-h-[80px] border-b border-r border-border bg-muted/20" />
+                  )
+                  const dateStr = toLocalDateStr(date)
+                  const isToday = dateStr === todayStr
+                  const isSelected = dateStr === selectedDay
+                  const isWeekend = date.getDay() === 0 || date.getDay() === 6
+                  const special = isSpecialDay(date)
+                  const dayAbsences = getAbsencesForDay(date)
+                  const dayAppointments = getAppointmentsForDay(date)
+                  const fiscal = fiscalDates.get(dateStr)
 
-          <div className="grid grid-cols-7">
-            {days.map((date, idx) => {
-              if (!date) return (
-                <div key={`empty-${idx}`} className="min-h-[80px] border-b border-r border-border bg-muted/20" />
-              )
-
-              const dateStr = toLocalDateStr(date)
-              const isToday = dateStr === todayStr
-              const isWeekend = date.getDay() === 0 || date.getDay() === 6
-              const special = isSpecialDay(date)
-              const dayAbsences = getAbsencesForDay(date)
-              const dayAppointments = getAppointmentsForDay(date)
-              const fiscal = fiscalDates.get(dateStr)
-
-              return (
-                <div
-                  key={dateStr}
-                  onClick={() => !isWeekend ? openDayDetail(dateStr) : null}
-                  className={`min-h-[80px] border-b border-r border-border p-1 transition-colors
-                    ${isWeekend ? 'bg-muted/30 cursor-default' : 'cursor-pointer hover:bg-tramit-blue-light/30 dark:hover:bg-blue-900/10'}
-                    ${special.holiday || special.closure ? 'bg-amber-50 dark:bg-amber-900/10' : ''}
-                    ${isToday ? 'ring-1 ring-inset ring-tramit-blue' : ''}
-                  `}
-                >
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
-                      isToday ? 'bg-tramit-blue text-white' : isWeekend ? 'text-muted-foreground/50' : 'text-foreground'
-                    }`}>
-                      {date.getDate()}
-                    </span>
-                    {fiscal && showFiscal && (
-                      <span title={`${fiscal.name}${fiscal.model ? ` · M.${fiscal.model}` : ''}`}
-                        className="text-[8px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1 rounded">
-                        {fiscal.model ? `M${fiscal.model}` : '📋'}
-                      </span>
-                    )}
-                  </div>
-
-                  {special.name && (
-                    <div className="text-[9px] text-amber-700 dark:text-amber-400 leading-tight mb-0.5 truncate" title={special.name}>
-                      {special.name}
-                    </div>
-                  )}
-
-                  <div className="space-y-0.5">
-                    {/* Cites */}
-                    {dayAppointments.slice(0, 2).map(apt => {
-                      const p = apt.profiles as { full_name: string; color: string | null } | null
-                      const color = p?.color || '#2272A3'
-                      return (
-                        <div key={apt.id}
-                          className="flex items-center gap-1 rounded px-1 py-0.5"
-                          style={{ backgroundColor: color + '30', borderLeft: `2px solid ${color}` }}>
-                          <span className="text-[9px] truncate font-medium" style={{ color }}>
-                            {formatTime(apt.start_time)} {TOPIC_LABELS[apt.topic]?.slice(0, 6) || apt.topic}
+                  return (
+                    <div key={dateStr}
+                      onClick={() => !isWeekend && handleDayClick(dateStr)}
+                      className={`min-h-[80px] border-b border-r border-border p-1 transition-colors
+                        ${isWeekend ? 'bg-muted/30 cursor-default' : 'cursor-pointer hover:bg-tramit-blue-light/30 dark:hover:bg-blue-900/10'}
+                        ${special.holiday || special.closure ? 'bg-amber-50 dark:bg-amber-900/10' : ''}
+                        ${isSelected ? 'ring-2 ring-inset ring-tramit-blue bg-tramit-blue-light/20' : ''}
+                        ${isToday && !isSelected ? 'ring-1 ring-inset ring-tramit-blue' : ''}
+                      `}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full ${
+                          isToday ? 'bg-tramit-blue text-white' : isWeekend ? 'text-muted-foreground/50' : 'text-foreground'
+                        }`}>
+                          {date.getDate()}
+                        </span>
+                        {fiscal && showFiscal && (
+                          <span title={`${fiscal.name}${fiscal.model ? ` · M.${fiscal.model}` : ''}`}
+                            className="text-[8px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-1 rounded">
+                            {fiscal.model ? `M${fiscal.model}` : '📋'}
                           </span>
-                        </div>
-                      )
-                    })}
-                    {/* Absències */}
-                    {dayAbsences.slice(0, 2).map(abs => {
-                      const profile = abs.profiles as { full_name: string; color: string | null } | null
-                      const color = profile?.color || '#2272A3'
-                      const name = profile?.full_name || '—'
-                      return (
-                        <div key={abs.id}
-                          className="flex items-center gap-1 rounded px-1 py-0.5"
-                          style={{ backgroundColor: color + '25', borderLeft: `2px solid ${color}` }}>
-                          <div className="h-3.5 w-3.5 rounded-full flex items-center justify-center text-white shrink-0"
-                            style={{ backgroundColor: color, fontSize: '7px', fontWeight: 700 }}>
-                            {getInitials(name)}
-                          </div>
-                          <span className="text-[9px] truncate font-medium" style={{ color }}>
-                            {name.split(' ')[0]}
-                          </span>
-                        </div>
-                      )
-                    })}
-                    {(dayAppointments.length + dayAbsences.length) > 4 && (
-                      <div className="text-[9px] text-muted-foreground pl-1">
-                        +{dayAppointments.length + dayAbsences.length - 4} més
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                      {special.name && (
+                        <div className="text-[9px] text-amber-700 dark:text-amber-400 leading-tight mb-0.5 truncate" title={special.name}>
+                          {special.name}
+                        </div>
+                      )}
+                      <div className="space-y-0.5">
+                        {dayAppointments.slice(0, 2).map(apt => {
+                          const p = apt.profiles as { full_name: string; color: string | null } | null
+                          const color = p?.color || '#2272A3'
+                          return (
+                            <div key={apt.id} className="flex items-center gap-1 rounded px-1 py-0.5"
+                              style={{ backgroundColor: color + '30', borderLeft: `2px solid ${color}` }}>
+                              <span className="text-[9px] truncate font-medium" style={{ color }}>
+                                {formatTime(apt.start_time)} {TOPIC_LABELS[apt.topic]?.slice(0, 5)}
+                              </span>
+                            </div>
+                          )
+                        })}
+                        {dayAbsences.slice(0, 2).map(abs => {
+                          const profile = abs.profiles as { full_name: string; color: string | null } | null
+                          const color = profile?.color || '#2272A3'
+                          const name = profile?.full_name || '—'
+                          return (
+                            <div key={abs.id} className="flex items-center gap-1 rounded px-1 py-0.5"
+                              style={{ backgroundColor: color + '25', borderLeft: `2px solid ${color}` }}>
+                              <div className="h-3.5 w-3.5 rounded-full flex items-center justify-center text-white shrink-0"
+                                style={{ backgroundColor: color, fontSize: '7px', fontWeight: 700 }}>
+                                {getInitials(name)}
+                              </div>
+                              <span className="text-[9px] truncate font-medium" style={{ color }}>
+                                {name.split(' ')[0]}
+                              </span>
+                            </div>
+                          )
+                        })}
+                        {(dayAppointments.length + dayAbsences.length) > 4 && (
+                          <div className="text-[9px] text-muted-foreground pl-1">
+                            +{dayAppointments.length + dayAbsences.length - 4} més
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Panell lateral del dia seleccionat */}
+        {selectedDay && <DayPanel dateStr={selectedDay} />}
+      </div>
     )
   }
 
@@ -542,102 +528,107 @@ export function AgendaClient({
     })
 
     return (
-      <Card>
-        <CardContent className="p-0 overflow-auto">
-          <div className="min-w-[600px]">
-            <div className="grid grid-cols-8 border-b border-border">
-              <div className="py-2 px-2 text-xs text-muted-foreground" />
-              {weekDays.map(d => {
-                const dateStr = toLocalDateStr(d)
-                const isToday = dateStr === todayStr
-                const isWeekend = d.getDay() === 0 || d.getDay() === 6
-                const special = isSpecialDay(d)
-                const fiscal = fiscalDates.get(dateStr)
-                return (
-                  <div key={dateStr}
-                    onClick={() => !isWeekend && openDayDetail(dateStr)}
-                    className={`py-2 text-center border-l border-border cursor-pointer hover:bg-muted/30 transition-colors
-                      ${isWeekend ? 'bg-muted/30' : ''}
-                      ${special.holiday || special.closure ? 'bg-amber-50 dark:bg-amber-900/10' : ''}
-                    `}>
-                    <p className={`text-xs font-medium ${isWeekend ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
-                      {DAYS_FULL_CA[d.getDay() === 0 ? 6 : d.getDay() - 1]}
-                    </p>
-                    <p className={`text-sm font-bold mt-0.5 mx-auto w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-tramit-blue text-white' : ''}`}>
-                      {d.getDate()}
-                    </p>
-                    {special.name && <p className="text-[9px] text-amber-600 truncate px-1">{special.name}</p>}
-                    {fiscal && showFiscal && <p className="text-[9px] text-amber-600 font-bold">{fiscal.model ? `M.${fiscal.model}` : '📋'}</p>}
-                  </div>
-                )
-              })}
-            </div>
+      <div className="flex gap-4 items-start">
+        <div className="flex-1 min-w-0">
+          <Card>
+            <CardContent className="p-0 overflow-auto">
+              <div className="min-w-[600px]">
+                <div className="grid grid-cols-8 border-b border-border">
+                  <div className="py-2 px-2 text-xs text-muted-foreground" />
+                  {weekDays.map(d => {
+                    const dateStr = toLocalDateStr(d)
+                    const isToday = dateStr === todayStr
+                    const isSelected = dateStr === selectedDay
+                    const isWeekend = d.getDay() === 0 || d.getDay() === 6
+                    const special = isSpecialDay(d)
+                    const fiscal = fiscalDates.get(dateStr)
+                    return (
+                      <div key={dateStr}
+                        onClick={() => !isWeekend && handleDayClick(dateStr)}
+                        className={`py-2 text-center border-l border-border cursor-pointer hover:bg-muted/30 transition-colors
+                          ${isWeekend ? 'bg-muted/30' : ''}
+                          ${special.holiday || special.closure ? 'bg-amber-50 dark:bg-amber-900/10' : ''}
+                          ${isSelected ? 'bg-tramit-blue-light/30 ring-1 ring-tramit-blue/50' : ''}
+                        `}>
+                        <p className={`text-xs font-medium ${isWeekend ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
+                          {DAYS_FULL_CA[d.getDay() === 0 ? 6 : d.getDay() - 1]}
+                        </p>
+                        <p className={`text-sm font-bold mt-0.5 mx-auto w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-tramit-blue text-white' : ''}`}>
+                          {d.getDate()}
+                        </p>
+                        {special.name && <p className="text-[9px] text-amber-600 truncate px-1">{special.name}</p>}
+                        {fiscal && showFiscal && <p className="text-[9px] text-amber-600 font-bold">{fiscal.model ? `M.${fiscal.model}` : '📋'}</p>}
+                      </div>
+                    )
+                  })}
+                </div>
 
-            {/* Absències dia complet */}
-            <div className="grid grid-cols-8 border-b border-border bg-muted/10">
-              <div className="px-2 py-2 text-xs text-muted-foreground self-center">Tot el dia</div>
-              {weekDays.map(d => {
-                const dateStr = toLocalDateStr(d)
-                const dayAbsences = getAbsencesForDay(d)
-                return (
-                  <div key={dateStr} className="border-l border-border p-1 min-h-[40px]">
-                    {dayAbsences.map(abs => {
-                      const profile = abs.profiles as { full_name: string; color: string | null } | null
-                      const color = profile?.color || '#2272A3'
+                <div className="grid grid-cols-8 border-b border-border bg-muted/10">
+                  <div className="px-2 py-2 text-xs text-muted-foreground self-center">Tot el dia</div>
+                  {weekDays.map(d => {
+                    const dateStr = toLocalDateStr(d)
+                    const dayAbsences = getAbsencesForDay(d)
+                    return (
+                      <div key={dateStr} className="border-l border-border p-1 min-h-[40px]">
+                        {dayAbsences.map(abs => {
+                          const profile = abs.profiles as { full_name: string; color: string | null } | null
+                          const color = profile?.color || '#2272A3'
+                          return (
+                            <div key={abs.id} className="flex items-center gap-1 rounded px-1 py-0.5 mb-0.5"
+                              style={{ backgroundColor: color + '25', borderLeft: `2px solid ${color}` }}>
+                              <span className="text-[9px] font-medium truncate" style={{ color }}>
+                                {profile?.full_name?.split(' ')[0]}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {HOURS.map(hour => (
+                  <div key={hour} className="grid grid-cols-8 border-b border-border">
+                    <div className="px-2 py-2 text-xs text-muted-foreground text-right">{hour}:00</div>
+                    {weekDays.map(d => {
+                      const dateStr = toLocalDateStr(d)
+                      const isWeekend = d.getDay() === 0 || d.getDay() === 6
+                      const hourApts = appointments.filter(apt => {
+                        if (filterUser !== 'all' && apt.main_attendee_id !== filterUser) return false
+                        const aptDate = new Date(apt.start_time)
+                        return toLocalDateStr(aptDate) === dateStr && aptDate.getHours() === hour
+                      })
                       return (
-                        <div key={abs.id} className="flex items-center gap-1 rounded px-1 py-0.5 mb-0.5"
-                          style={{ backgroundColor: color + '25', borderLeft: `2px solid ${color}` }}>
-                          <span className="text-[9px] font-medium truncate" style={{ color }}>
-                            {profile?.full_name?.split(' ')[0]}
-                          </span>
+                        <div key={dateStr + hour}
+                          onClick={() => !isWeekend && openNovaCita(dateStr, `${String(hour).padStart(2, '0')}:00`)}
+                          className={`border-l border-border min-h-[48px] p-0.5 transition-colors ${
+                            isWeekend ? 'bg-muted/20 cursor-default' : 'cursor-pointer hover:bg-tramit-blue-light/30 dark:hover:bg-blue-900/10'
+                          }`}>
+                          {hourApts.map(apt => {
+                            const p = apt.profiles as { full_name: string; color: string | null } | null
+                            const color = p?.color || '#2272A3'
+                            return (
+                              <div key={apt.id}
+                                onClick={e => { e.stopPropagation(); setSelectedAppointment(apt) }}
+                                className="rounded px-1 py-0.5 mb-0.5 cursor-pointer hover:opacity-80"
+                                style={{ backgroundColor: color + '30', borderLeft: `2px solid ${color}` }}>
+                                <span className="text-[9px] font-medium truncate block" style={{ color }}>
+                                  {TOPIC_LABELS[apt.topic]?.slice(0, 8)}
+                                </span>
+                              </div>
+                            )
+                          })}
                         </div>
                       )
                     })}
                   </div>
-                )
-              })}
-            </div>
-
-            {/* Hores */}
-            {HOURS.map(hour => (
-              <div key={hour} className="grid grid-cols-8 border-b border-border">
-                <div className="px-2 py-2 text-xs text-muted-foreground text-right">{hour}:00</div>
-                {weekDays.map(d => {
-                  const dateStr = toLocalDateStr(d)
-                  const isWeekend = d.getDay() === 0 || d.getDay() === 6
-                  const hourApts = appointments.filter(apt => {
-                    if (filterUser !== 'all' && apt.main_attendee_id !== filterUser) return false
-                    const aptDate = new Date(apt.start_time)
-                    return toLocalDateStr(aptDate) === dateStr && aptDate.getHours() === hour
-                  })
-                  return (
-                    <div key={dateStr + hour}
-                      onClick={() => !isWeekend && openNovaCita(dateStr, `${String(hour).padStart(2, '0')}:00`)}
-                      className={`border-l border-border min-h-[48px] p-0.5 transition-colors ${
-                        isWeekend ? 'bg-muted/20 cursor-default' : 'cursor-pointer hover:bg-tramit-blue-light/30 dark:hover:bg-blue-900/10'
-                      }`}>
-                      {hourApts.map(apt => {
-                        const p = apt.profiles as { full_name: string; color: string | null } | null
-                        const color = p?.color || '#2272A3'
-                        return (
-                          <div key={apt.id}
-                            onClick={e => { e.stopPropagation(); setSelectedAppointment(apt) }}
-                            className="rounded px-1 py-0.5 mb-0.5 cursor-pointer hover:opacity-80"
-                            style={{ backgroundColor: color + '30', borderLeft: `2px solid ${color}` }}>
-                            <span className="text-[9px] font-medium truncate block" style={{ color }}>
-                              {TOPIC_LABELS[apt.topic]?.slice(0, 8)}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })}
+                ))}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+        {selectedDay && <DayPanel dateStr={selectedDay} />}
+      </div>
     )
   }
 
@@ -676,7 +667,8 @@ export function AgendaClient({
                     return (
                       <div key={abs.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium"
                         style={{ backgroundColor: color + '20', color }}>
-                        <div className="h-5 w-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: color }}>
+                        <div className="h-5 w-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                          style={{ backgroundColor: color }}>
                           {getInitials(profile?.full_name || '?')}
                         </div>
                         {profile?.full_name?.split(' ')[0]}
@@ -751,9 +743,7 @@ export function AgendaClient({
       if (filterUser !== 'all' && abs.user_id !== filterUser) return false
       return start <= monthEnd && end >= monthStart
     })
-
     if (monthAbsences.length === 0) return null
-
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -814,7 +804,7 @@ export function AgendaClient({
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex gap-1 bg-muted p-1 rounded-lg">
             {(['mes', 'setmana', 'dia'] as ViewMode[]).map(mode => (
-              <button key={mode} onClick={() => setViewMode(mode)}
+              <button key={mode} onClick={() => { setViewMode(mode); setSelectedDay(null) }}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   viewMode === mode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}>
@@ -899,10 +889,7 @@ export function AgendaClient({
       {viewMode === 'mes' && renderMes()}
       {viewMode === 'setmana' && renderSetmana()}
       {viewMode === 'dia' && renderDia()}
-      {viewMode === 'mes' && renderResumMes()}
-
-      {/* Modal detall dia */}
-      {selectedDay && <DayModal dateStr={selectedDay} />}
+      {viewMode === 'mes' && !selectedDay && renderResumMes()}
 
       {/* Modal detall cita */}
       {selectedAppointment && <AppointmentModal apt={selectedAppointment} />}
