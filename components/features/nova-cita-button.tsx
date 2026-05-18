@@ -553,3 +553,10 @@ export function NovaCitaButton({
                   </div>
                 </form>
               )
+</CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}
