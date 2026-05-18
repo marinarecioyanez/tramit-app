@@ -14,6 +14,7 @@ import {
   RefreshCw, Filter
 } from 'lucide-react'
 import { SettingsClient } from './settings-client'
+import { CalendariFiscalClient } from './calendari-fiscal-client'
 
 interface ProfileData {
   id: string; full_name: string; email: string; role: string
