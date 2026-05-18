@@ -9,12 +9,18 @@ export default async function TasquesPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user!.id).single()
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'supervisor'
+
   const [
     { data: tasks },
     { data: profiles },
     { data: clients },
     { data: templates },
     { data: timeEntries },
+    { data: documents },
+    { data: docRequests },
   ] = await Promise.all([
     supabase.from('tasks')
       .select('*, profiles!tasks_assigned_to_fkey(full_name, color), clients(name)')
@@ -29,6 +35,12 @@ export default async function TasquesPage() {
     supabase.from('time_entries')
       .select('*')
       .gte('date', new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]),
+    supabase.from('documents')
+      .select('*, clients(name), profiles!documents_uploaded_by_fkey(full_name)')
+      .order('created_at', { ascending: false }).limit(50),
+    supabase.from('document_requests')
+      .select('*, clients(name), profiles!document_requests_created_by_fkey(full_name)')
+      .order('created_at', { ascending: false }).limit(30),
   ])
 
   return (
@@ -39,6 +51,9 @@ export default async function TasquesPage() {
       templates={(templates || []).map(t => ({ ...t, tasks: Array.isArray(t.tasks) ? t.tasks : [] }))}
       currentUserId={user!.id}
       timeEntries={timeEntries || []}
+      documents={documents || []}
+      docRequests={docRequests || []}
+      isAdmin={isAdmin}
     />
   )
 }
