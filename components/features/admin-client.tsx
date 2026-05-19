@@ -10,7 +10,7 @@ import {
   Users, Settings, Shield, Plus, X,
   CheckCircle, AlertTriangle, Pencil, Eye, EyeOff,
   ChevronDown, ChevronUp, Download, Search,
-  Activity, Lock, Server,
+  Activity, Lock, Server, Calendar,
 } from 'lucide-react'
 import { SettingsClient } from './settings-client'
 import { CalendariFiscalClient } from './calendari-fiscal-client'
