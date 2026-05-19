@@ -27,7 +27,6 @@ const adminNavItems: NavItem[] = [
   { label: 'Tasques',         href: '/dashboard/tasques',        icon: CheckSquare },
   { label: 'Informes',        href: '/dashboard/informes',       icon: BarChart3 },
   { label: 'Assessor Tràmit', href: '/dashboard/assessor',       icon: BookOpen },
-  { label: 'Calendari Fiscal', href: '/dashboard/calendari-fiscal', icon: Calendar },
   { label: 'Administració',    href: '/dashboard/administracio',    icon: Settings },
 ]
 
