@@ -204,11 +204,12 @@ export function AdminClient({
   }
 
   const TABS: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: 'usuaris',      label: 'Usuaris',      icon: Users },
-    { id: 'configuracio', label: 'Configuració', icon: Settings },
-    { id: 'auditoria',    label: 'Auditoria',    icon: Shield },
-    { id: 'accessos',     label: 'Accessos',     icon: Lock },
-    { id: 'sistema',      label: 'Sistema',      icon: Server },
+    { id: 'usuaris',      label: 'Usuaris',        icon: Users },
+    { id: 'configuracio', label: 'Configuració',   icon: Settings },
+    { id: 'fiscal',       label: 'Cal. Fiscal',    icon: Calendar },
+    { id: 'auditoria',    label: 'Auditoria',      icon: Shield },
+    { id: 'accessos',     label: 'Accessos',       icon: Lock },
+    { id: 'sistema',      label: 'Sistema',        icon: Server },
   ]
 
   return (
