@@ -368,16 +368,15 @@ export function AdminClient({
 
       {/* ── CONFIGURACIÓ ── */}
       {activeTab === 'configuracio' && (
-        <div className="space-y-8">
-          <SettingsClient settings={settings} holidays={holidays} closures={closures} />
-          <div className="border-t pt-8">
-            <CalendariFiscalClient
-              deadlines={fiscalDeadlines}
-              currentYear={currentYear}
-              isAdmin={true}
-            />
-          </div>
-        </div>
+        <SettingsClient settings={settings} holidays={holidays} closures={closures} />
+      )}
+
+      {activeTab === 'fiscal' && (
+        <CalendariFiscalClient
+          deadlines={fiscalDeadlines}
+          currentYear={currentYear}
+          isAdmin={true}
+        />
       )}
 
       {/* ── AUDITORIA ── */}
