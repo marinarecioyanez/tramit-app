@@ -85,7 +85,7 @@ function downloadCSV(filename: string, headers: string[], rows: (string | number
   URL.revokeObjectURL(url)
 }
 
-type TabId = 'usuaris' | 'configuracio' | 'auditoria' | 'accessos' | 'sistema'
+type TabId = 'usuaris' | 'configuracio' | 'fiscal' | 'auditoria' | 'accessos' | 'sistema'
 
 export function AdminClient({
   profiles, settings, holidays, closures, auditLogs, accessLogs = [],
