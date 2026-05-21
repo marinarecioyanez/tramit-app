@@ -22,22 +22,22 @@ export default async function WorkerEquipPage() {
     { data: holidays },
     { data: closures },
   ] = await Promise.all([
-    // Vacances i absències PRÒPIES del treballador
+    // Només les pròpies sol·licituds
     supabase
       .from('absence_requests')
       .select('*, profiles!absence_requests_user_id_fkey(full_name, color, email)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false }),
-    // Saldo PROPI
+    // Només el propi saldo
     supabase
       .from('vacation_balances')
       .select('*, profiles!vacation_balances_user_id_fkey(full_name, color)')
       .eq('user_id', user.id)
       .in('year', [currentYear - 1, currentYear, currentYear + 1]),
-    // TOTS els perfils (per veure l'equip complet)
+    // Tots els perfils (per veure qui és l'equip, però sense dades sensibles)
     supabase
       .from('profiles')
-      .select('id, full_name, color, role, email, phone, active')
+      .select('id, full_name, color, role, active')
       .eq('active', true)
       .order('full_name'),
     supabase.from('holidays').select('date').eq('year', currentYear),
