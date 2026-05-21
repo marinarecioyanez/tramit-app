@@ -37,7 +37,7 @@ export default async function WorkerEquipPage() {
     // Tots els perfils (per veure qui és l'equip, però sense dades sensibles)
     supabase
       .from('profiles')
-      .select('id, full_name, color, role, active')
+      .select('id, full_name, color, role, active, mail')
       .eq('active', true)
       .order('full_name'),
     supabase.from('holidays').select('date').eq('year', currentYear),
