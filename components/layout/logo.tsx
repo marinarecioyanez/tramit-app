@@ -21,7 +21,7 @@ export function TramitLogo({ size = 'md', variant = 'full' }: LogoProps) {
         className="rounded-lg overflow-hidden bg-white flex items-center justify-center p-1"
       >
         <Image
-          src="/logo_tramit.png"
+          src="/logo tramit.png"
           alt="Tràmit Economistes"
           width={36}
           height={36}
@@ -33,7 +33,7 @@ export function TramitLogo({ size = 'md', variant = 'full' }: LogoProps) {
 
   return (
     <Image
-      src="/logo_tramit.png"
+      src="/logo tramit.png"
       alt="Tràmit Economistes"
       width={width}
       height={height}
