@@ -53,7 +53,9 @@ export function Sidebar({ profile, onSignOut, onNavigate }: SidebarProps) {
   return (
     <aside className="w-[220px] h-screen flex flex-col bg-tramit-blue-dark text-white">
       <div className="flex items-center justify-center py-5 px-4 border-b border-white/10">
-        <TramitLogo size="sm" />
+        <div className="bg-white rounded-lg px-3 py-2">
+          <TramitLogo size="sm" />
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-2">
