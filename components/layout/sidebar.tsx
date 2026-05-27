@@ -32,9 +32,9 @@ const adminNavItems: NavItem[] = [
 
 const workerNavItems: NavItem[] = [
   { label: 'Inici',         href: '/worker',           icon: Home },
-  { label: 'Agenda',        href: '/worker/agenda',    icon: Calendar },
+  { label: 'Calendari',     href: '/worker/agenda',    icon: Calendar },
+  { label: 'Clients',       href: '/worker/clients',   icon: Users },
   { label: 'Vacances',      href: '/worker/vacances',  icon: Umbrella },
-  { label: 'Equip',         href: '/worker/equip',     icon: Users },
   { label: 'El meu perfil', href: '/worker/perfil',    icon: UserCircle },
 ]
 
