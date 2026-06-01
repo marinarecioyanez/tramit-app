@@ -120,6 +120,29 @@ export async function POST(request: Request) {
       }
     }
 
+    // 6. Notificar als admins si la cita l'ha creada un treballador
+    if (!isAdmin) {
+      const { data: adminProfiles } = await serviceSupabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('role', 'admin')
+        .eq('active', true)
+
+      const startDate2 = new Date(start_time)
+      const dateStr2 = startDate2.toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      const startTimeStr2 = `${String(startDate2.getHours()).padStart(2, '0')}:${String(startDate2.getMinutes()).padStart(2, '0')}`
+
+      for (const admin of adminProfiles || []) {
+        await serviceSupabase.from('notifications').insert({
+          user_id: admin.id,
+          title: 'Nova sol·licitud de cita',
+          body: `${creatorProfile?.full_name || 'Un treballador'} ha sol·licitat una cita el ${dateStr2} a les ${startTimeStr2}.`,
+          type: 'appointment',
+          read: false,
+        })
+      }
+    }
+
     return NextResponse.json({ success: true, appointmentId: appointment.id })
   } catch (error) {
     console.error('[Appointments] Error:', error)
