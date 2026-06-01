@@ -20,5 +20,5 @@ export default async function WorkerClientsPage() {
       .order('full_name'),
   ])
 
-  return <ClientsClient clients={clients || []} profiles={profiles || []} />
+  return <ClientsClient clients={clients || []} profiles={profiles || []} isWorker={true} />
 }
