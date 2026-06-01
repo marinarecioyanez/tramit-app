@@ -19,23 +19,23 @@ interface NavItem {
 }
 
 const adminNavItems: NavItem[] = [
-  { label: 'Tauler',          href: '/dashboard',                icon: LayoutDashboard },
-  { label: 'Agenda',          href: '/dashboard/agenda',         icon: Calendar },
-  { label: 'Missatges',       href: '/dashboard/missatges',      icon: MessageSquare },
-  { label: 'Equip',           href: '/dashboard/equip',          icon: Umbrella },
-  { label: 'Clients',         href: '/dashboard/clients',        icon: Users },
-  { label: 'Tasques',         href: '/dashboard/tasques',        icon: CheckSquare },
-  { label: 'Informes',        href: '/dashboard/informes',       icon: BarChart3 },
-  { label: 'Assessor Tràmit', href: '/dashboard/assessor',       icon: BookOpen },
-  { label: 'Administració',    href: '/dashboard/administracio',    icon: Settings },
+  { label: 'Tauler',          href: '/dashboard',               icon: LayoutDashboard },
+  { label: 'Agenda',          href: '/dashboard/agenda',        icon: Calendar },
+  { label: 'Missatges',       href: '/dashboard/missatges',     icon: MessageSquare },
+  { label: 'Equip',           href: '/dashboard/equip',         icon: Umbrella },
+  { label: 'Clients',         href: '/dashboard/clients',       icon: Users },
+  { label: 'Tasques',         href: '/dashboard/tasques',       icon: CheckSquare },
+  { label: 'Informes',        href: '/dashboard/informes',      icon: BarChart3 },
+  { label: 'Assessor Tràmit', href: '/dashboard/assessor',      icon: BookOpen },
+  { label: 'Administració',   href: '/dashboard/administracio', icon: Settings },
 ]
 
 const workerNavItems: NavItem[] = [
-  { label: 'Inici',         href: '/worker',           icon: Home },
-  { label: 'Calendari',     href: '/worker/agenda',    icon: Calendar },
-  { label: 'Clients',       href: '/worker/clients',   icon: Users },
-  { label: 'Vacances',      href: '/worker/vacances',  icon: Umbrella },
-  { label: 'El meu perfil', href: '/worker/perfil',    icon: UserCircle },
+  { label: 'Inici',         href: '/worker',          icon: Home },
+  { label: 'Calendari',     href: '/worker/agenda',   icon: Calendar },
+  { label: 'Clients',       href: '/worker/clients',  icon: Users },
+  { label: 'Vacances',      href: '/worker/vacances', icon: Umbrella },
+  { label: 'El meu perfil', href: '/worker/perfil',   icon: UserCircle },
 ]
 
 interface SidebarProps {
