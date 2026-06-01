@@ -96,7 +96,7 @@ const EMPTY_FORM = {
   iae: '', vat_regime: '', legal_form: '', tags: [] as string[],
 }
 
-export function ClientsClient({ clients: initialClients, profiles }: { clients: Client[]; profiles: Profile[] }) {
+export function ClientsClient({ clients: initialClients, profiles, isWorker = false }: { clients: Client[]; profiles: Profile[]; isWorker?: boolean }) {
   const [clients, setClients] = useState<Client[]>(initialClients)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
