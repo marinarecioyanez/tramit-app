@@ -1,5 +1,3 @@
-import Image from 'next/image'
-
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg'
   variant?: 'full' | 'icon'
@@ -20,7 +18,8 @@ export function TramitLogo({ size = 'md', variant = 'full' }: LogoProps) {
         style={{ width: 40, height: 40 }}
         className="rounded-lg overflow-hidden bg-white flex items-center justify-center p-1"
       >
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/logo tramit.png"
           alt="Tràmit Economistes"
           width={36}
@@ -32,13 +31,13 @@ export function TramitLogo({ size = 'md', variant = 'full' }: LogoProps) {
   }
 
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src="/logo tramit.png"
       alt="Tràmit Economistes"
       width={width}
       height={height}
       style={{ objectFit: 'contain' }}
-      priority
     />
   )
 }
